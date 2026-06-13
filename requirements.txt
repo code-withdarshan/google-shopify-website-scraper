@@ -1,0 +1,9 @@
+flask>=3.0
+flask-cors>=4.0
+requests>=2.32
+beautifulsoup4>=4.12
+browser-cookie3>=0.19
+selenium>=4.25
+openai>=1.54
+websocket-client>=1.8
+pyinstaller>=6.15

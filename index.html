@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shopify Vertical Scraper</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#262a33; --fg:#e6e8eb; --mut:#9aa0aa; --acc:#5b8cff; --ok:#3ec28d; --bad:#e15a5a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  h1 { font-size:16px; margin:0; }
+  main { display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut); margin:0 0 12px; }
+  label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px; }
+  input, select { width:100%; padding:8px 10px; background:#0c0e13; color:var(--fg); border:1px solid var(--line); border-radius:6px; font:inherit; }
+  button { padding:9px 14px; border-radius:6px; border:0; background:var(--acc); color:#fff; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--fg); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; }
+  .pill.ok { background:rgba(62,194,141,.15); color:var(--ok); }
+  .pill.bad { background:rgba(225,90,90,.15); color:var(--bad); }
+  .pill.mut { background:#222631; color:var(--mut); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--mut); font-weight:500; font-size:11px; text-transform:uppercase; }
+  td a { color:var(--acc); text-decoration:none; }
+  .log { background:#0a0c10; border:1px solid var(--line); border-radius:6px; padding:10px; height:200px; overflow:auto; font-family:Consolas,monospace; font-size:12px; color:#cdd2d8; white-space:pre-wrap; }
+  .bar { height:6px; background:#0a0c10; border-radius:999px; overflow:hidden; }
+  .bar > div { height:100%; background:var(--acc); width:0; transition:width .3s; }
+  .muted { color:var(--mut); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Shopify Vertical Scraper</h1>
+  <span class="muted">Jewelry · Fashion · Retail</span>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>Scrape</h2>
+      <label>Niche keywords (comma-separated)</label>
+      <input id="keywords" placeholder="e.g. jewelry, engagement rings, fine necklaces">
+      <label>Niche to verify against <span class="muted">(free text — NVIDIA decides match)</span></label>
+      <input id="customNiche" list="nicheSuggest" placeholder="e.g. dental clinic, vegan skincare, real-estate agency, SaaS for restaurants…">
+      <datalist id="nicheSuggest">
+        <option value="Jewelry"></option>
+        <option value="Fashion"></option>
+        <option value="Retail"></option>
+        <option value="Beauty & skincare"></option>
+        <option value="Hair salon / barber"></option>
+        <option value="Dental clinic"></option>
+        <option value="Real estate agency"></option>
+        <option value="Fitness / gym"></option>
+        <option value="Coaching / coaches"></option>
+        <option value="Restaurant"></option>
+        <option value="Law firm"></option>
+        <option value="SaaS"></option>
+      </datalist>
+      <input id="vertical" type="hidden" value="all">
+      <div class="grid2">
+        <div><label>Country</label><input id="country" placeholder="e.g. United States"></div>
+        <div><label>State</label><input id="state" placeholder="e.g. California"></div>
+        <div><label>City</label><input id="city" placeholder="e.g. Los Angeles"></div>
+        <div><label>Area</label><input id="area" placeholder="e.g. Beverly Hills"></div>
+      </div>
+      <label>Tech stacks to keep <span class="muted">(uncheck all = keep any detected)</span></label>
+      <div id="stacks" style="display:flex; flex-wrap:wrap; gap:6px 12px; padding:8px 10px; background:#0c0e13; border:1px solid var(--line); border-radius:6px;"></div>
+      <label>Google pages per query <span class="muted">(1 page ≈ 10 results)</span></label>
+      <input id="pages" type="number" value="1" min="1" max="10">
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+        <input id="classifyNiche" type="checkbox" checked style="width:auto;"> Run NVIDIA niche classification
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+        <input id="useBrowser" type="checkbox" checked style="width:auto;"> Use local Chrome (debugger) for search
+      </label>
+      <div id="browserState" class="muted" style="font-size:11px; margin-top:4px;"></div>
+      <button id="openTabs" class="ghost" style="margin-top:8px;">Open Google search tab</button>
+      <div class="muted" style="font-size:11px; margin-top:4px;">If Google shows a consent or login wall, complete it in that tab — then click <b>Start scraping</b>.</div>
+      <div id="openTabsOut" class="muted" style="font-size:11px; margin-top:4px;"></div>
+      <div style="margin-top:14px;" class="row">
+        <button id="go">Start scraping</button>
+        <button id="stop" class="ghost" disabled>Stop</button>
+        <button id="resume" class="ghost" disabled style="border-color:#5b8cff; color:#5b8cff;">▶ Resume</button>
+      </div>
+      <div id="resumeHint" class="muted" style="font-size:11px; margin-top:6px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Verify single domain</h2>
+      <label>Domain or URL</label>
+      <input id="vUrl" placeholder="example-store.com">
+      <div style="margin-top:10px;"><button id="vGo" class="ghost">Verify with NVIDIA</button></div>
+      <div id="vOut" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Proxy & rate limiting</h2>
+      <label>Chrome proxy URL <span class="muted">(optional — e.g. <code>socks5://host:1080</code> or <code>http://user:pass@host:port</code>)</span></label>
+      <input id="proxyUrl" placeholder="leave empty for direct connection">
+      <div class="grid2">
+        <div><label>Min delay (sec)</label><input id="minDelay" type="number" step="0.5" value="1.5"></div>
+        <div><label>Max delay (sec)</label><input id="maxDelay" type="number" step="0.5" value="4"></div>
+      </div>
+      <div style="margin-top:10px;"><button id="saveProxy" class="ghost">Save</button>
+        <span id="proxyState" class="muted" style="margin-left:8px;"></span></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Bulk verify <span class="muted" style="font-weight:normal; font-size:11px;">(skip Google search, run Phase 2 + 3 on URLs you paste)</span></h2>
+      <div class="muted" style="font-size:11px; margin-bottom:6px;">
+        NVIDIA niche classification always runs for bulk verify when the API is connected.
+        .gov / .edu / .org / .mil / .ac domains are auto-skipped.
+      </div>
+      <label>Niche to verify against <span class="muted">(only sites matching this are kept)</span></label>
+      <input id="bulkNiche" placeholder="e.g. jewelry store, dental clinic, vegan skincare">
+      <label style="margin-top:8px;">Paste URLs (one per line, or comma-separated)</label>
+      <textarea id="bulkUrls" rows="4" style="width:100%; background:#0c0e13; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-family:Consolas,monospace; font-size:12px;" placeholder="example1.com&#10;example2.com&#10;example3.com"></textarea>
+      <div style="margin-top:10px;"><button id="bulkGo" class="ghost">Verify these URLs</button>
+        <span id="bulkState" class="muted" style="margin-left:8px;"></span></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>NVIDIA Build API
+        <span id="nvStatus" class="pill mut" style="margin-left:8px;">checking…</span>
+      </h2>
+      <div id="nvDetail" class="muted" style="font-size:11px; margin:-4px 0 8px; min-height:14px;"></div>
+      <label>API Key</label>
+      <input id="apiKey" type="password" placeholder="nvapi-…">
+      <label>Reasoning Model</label>
+      <select id="model"></select>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+        <input id="reasoning" type="checkbox" checked style="width:auto;"> Enable chain-of-thought reasoning
+      </label>
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button id="saveCfg" class="ghost">Save</button>
+        <button id="testModel" class="ghost" style="border-color:#5b8cff; color:#5b8cff;">Test model</button>
+        <button id="testAll" class="ghost" style="border-color:#5b8cff; color:#5b8cff;">Test ALL models</button>
+        <button id="discNv" class="ghost" style="border-color:#e15a5a; color:#e15a5a;">Disconnect</button>
+      </div>
+      <div id="testModelOut" class="muted" style="font-size:11px; margin-top:6px; min-height:14px;"></div>
+      <div id="testAllOut" style="margin-top:8px; font-size:11px;"></div>
+      <span id="cfgState" class="muted" style="font-size:11px;"></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Progress</h2>
+      <div id="captchaBanner" style="display:none; background:#3b2a14; border:1px solid #d39a3a; border-radius:8px; padding:12px 14px; margin-bottom:10px; color:#fce6b0;">
+        <b>⏸ Paused — Google CAPTCHA detected.</b><br>
+        Switch to the Chrome window the scraper opened, solve the image/checkbox challenge, then come back here.
+        The scraper will auto-resume within a few seconds of you solving it.
+        <div style="margin-top:8px;">
+          <button id="captchaResume" class="ghost" style="border-color:#d39a3a; color:#fce6b0;">I solved it — Resume now</button>
+        </div>
+      </div>
+      <div class="bar"><div id="progBar"></div></div>
+      <div id="progText" class="muted" style="margin-top:6px;">Idle.</div>
+      <div class="log" id="log" style="margin-top:10px;"></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h2>Pipeline <span id="phasePill" class="pill mut" style="margin-left:8px;">idle</span></h2>
+      <div class="row" style="gap:16px;">
+        <div><span class="muted">Collected</span> <b id="cCount">0</b></div>
+        <div><span class="muted">Verified</span> <b id="vCount">0</b></div>
+        <div><span class="muted">Matched niches</span> <b id="mCount">0</b></div>
+        <div><span class="muted">Rejected</span> <b id="rCount">0</b></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Matched Results</h2>
+      <table id="tbl"><thead><tr><th>Domain</th><th>Tech stack</th><th>Niche</th><th>Conf.</th><th>URL</th></tr></thead><tbody></tbody></table>
+      <div style="margin-top:10px;">
+        <button id="dl" class="ghost">Download CSV</button>
+        <button id="copyTsv" class="ghost" style="margin-left:6px;">Copy as TSV (paste into Sheets)</button>
+        <span id="copyTsvState" class="muted" style="margin-left:8px;"></span>
+      </div>
+      <div id="diffBadge" class="muted" style="font-size:12px; margin-top:8px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>All Analysed URLs (before filter)</h2>
+      <table id="tblAll"><thead><tr><th>Domain</th><th>Tech stack</th><th>Niche</th><th>Conf.</th><th>Accepted</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Past runs (recoverable)
+        <button id="refreshJobs" class="ghost" style="margin-left:8px; padding:2px 8px; font-size:11px;">Refresh</button>
+      </h2>
+      <div class="muted" style="font-size:11px; margin-bottom:8px;">
+        Every URL collected is saved to <code>scraper.db</code>. Crashes, Stop clicks, and accidental tab closes never lose data.
+      </div>
+      <table id="tblJobs"><thead><tr>
+        <th>When</th><th>Status</th><th>Collected</th><th>Verified</th><th>Matched</th><th>Params</th><th></th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let jobId = null, poll = null, results = [];
+
+async function loadStacks() {
+  const r = await fetch("/api/tech-stacks"); const j = await r.json();
+  const wrap = $("stacks"); wrap.innerHTML = "";
+  const defaults = new Set(["Shopify"]);
+  for (const s of j.stacks) {
+    const id = "st_" + s.replace(/\W/g,"");
+    const lbl = document.createElement("label");
+    lbl.style.cssText = "display:flex; align-items:center; gap:4px; font-size:12px; color:var(--fg); margin:0;";
+    lbl.innerHTML = `<input type="checkbox" id="${id}" value="${s}" style="width:auto;" ${defaults.has(s)?"checked":""}> ${s}`;
+    wrap.appendChild(lbl);
+  }
+}
+loadStacks();
+
+async function refreshBrowserState() {
+  try {
+    const r = await fetch("/api/browser-status"); const j = await r.json();
+    const parts = [
+      `port ${j.port}`,
+      j.alive ? "debugger ALIVE" : "debugger off",
+      j.chrome_exe ? "chrome.exe found" : "chrome.exe NOT found",
+      j.selenium_available ? "selenium ok" : "selenium missing",
+    ];
+    $("browserState").textContent = parts.join(" · ");
+  } catch (e) { $("browserState").textContent = "status check failed"; }
+}
+refreshBrowserState();
+setInterval(refreshBrowserState, 5000);
+
+function setNvDetail(text, color) {
+  const d = $("nvDetail");
+  if (!d) return;
+  d.textContent = text || "";
+  d.style.color = color || "var(--mut)";
+}
+
+let nvLastConnected = false;
+let nvPollHandle = null;
+
+async function refreshNvidiaStatus() {
+  const el = $("nvStatus");
+  el.className = "pill mut";
+  el.textContent = "⏳ Checking…";
+  el.style.background = "#222631"; el.style.color = "var(--mut)";
+  el.title = "";
+  setNvDetail("Checking API key…", "#9aa0aa");
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const r = await fetch("/api/nvidia-status", {signal: ctrl.signal});
+    const j = await r.json();
+    if (j.connected) {
+      el.className = "pill ok"; el.textContent = "● Connected";
+      el.style.background = "rgba(62,194,141,.2)"; el.style.color = "#3ec28d";
+      el.title = "Model: " + (j.model || "?");
+      setNvDetail(`Live · model: ${j.model || "?"}`, "#3ec28d");
+      nvLastConnected = true;
+    } else {
+      nvLastConnected = false;
+      el.className = "pill bad"; el.textContent = "● Disconnected";
+      el.style.background = "rgba(225,90,90,.2)"; el.style.color = "#e15a5a";
+      el.title = j.reason || "unknown error";
+      const stepLabel = ({
+        key: "no API key",
+        auth: "authentication failed",
+        sdk: "openai SDK missing",
+        completion: "chat completion failed",
+      })[j.step] || "error";
+      setNvDetail(`✖ ${stepLabel} — ${j.reason || "unknown"}`, "#e15a5a");
+    }
+  } catch (e) {
+    el.className = "pill bad"; el.textContent = "● Disconnected";
+    el.style.background = "rgba(225,90,90,.2)"; el.style.color = "#e15a5a";
+    const isTimeout = (e && e.name === "AbortError");
+    el.title = isTimeout ? "timeout" : String(e);
+    setNvDetail(
+      isTimeout
+        ? "✖ Status check timed out (>28s). NVIDIA cold-start can take this long; try again."
+        : `✖ ${e}`,
+      "#e15a5a"
+    );
+    nvLastConnected = false;
+  } finally {
+    clearTimeout(t);
+    // Adaptive polling: 5 min when healthy, 30s when broken.
+    if (nvPollHandle) clearTimeout(nvPollHandle);
+    nvPollHandle = setTimeout(refreshNvidiaStatus, nvLastConnected ? 300000 : 30000);
+  }
+}
+refreshNvidiaStatus();
+
+$("openTabs").onclick = async () => {
+  $("openTabsOut").textContent = "Opening tabs in your local Chrome…";
+  try {
+    const r = await fetch("/api/open-engine-tabs", {method:"POST"});
+    const j = await r.json();
+    if (j.ok) {
+      const names = Object.keys(j.tabs || {});
+      $("openTabsOut").innerHTML =
+        `Opened: <b>${names.join(", ") || "(none)"}</b>. ` +
+        `Log into Google &amp; Bing in those tabs, then click <b>Start scraping</b>.`;
+    } else {
+      $("openTabsOut").textContent = "Error: " + (j.error || "unknown");
+    }
+  } catch (e) { $("openTabsOut").textContent = "Error: " + e; }
+};
+
+function selectedStacks() {
+  return Array.from(document.querySelectorAll("#stacks input:checked")).map(i => i.value);
+}
+
+async function loadCfg() {
+  const [cR, mR] = await Promise.all([fetch("/api/config"), fetch("/api/models")]);
+  const c = await cR.json(); const m = await mR.json();
+  if ($("proxyUrl")) $("proxyUrl").value = c.proxy_url || "";
+  if ($("minDelay")) $("minDelay").value = c.min_delay_sec ?? 1.5;
+  if ($("maxDelay")) $("maxDelay").value = c.max_delay_sec ?? 4;
+  const sel = $("model"); sel.innerHTML = "";
+  for (const id of (m.models||[])) {
+    const o = document.createElement("option"); o.value = id; o.textContent = id;
+    if (id === c.nvidia_model) o.selected = true;
+    sel.appendChild(o);
+  }
+  if (c.nvidia_model && !Array.from(sel.options).some(o=>o.value===c.nvidia_model)) {
+    const o = document.createElement("option"); o.value = c.nvidia_model; o.textContent = c.nvidia_model + " (custom)";
+    o.selected = true; sel.appendChild(o);
+  }
+  $("reasoning").checked = c.nvidia_reasoning !== false;
+  $("cfgState").textContent = c.nvidia_api_key ? "Key set · " + (c.nvidia_model||"") : "No key configured";
+}
+loadCfg();
+
+$("saveCfg").onclick = async () => {
+  await fetch("/api/config", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      nvidia_api_key: $("apiKey").value,
+      nvidia_model: $("model").value,
+      nvidia_reasoning: $("reasoning").checked,
+    })});
+  $("apiKey").value = ""; loadCfg(); refreshNvidiaStatus();
+};
+
+$("saveProxy").onclick = async () => {
+  await fetch("/api/config", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      proxy_url: $("proxyUrl").value.trim(),
+      min_delay_sec: parseFloat($("minDelay").value || "1.5"),
+      max_delay_sec: parseFloat($("maxDelay").value || "4"),
+    })});
+  $("proxyState").textContent = "Saved · restart scrape to apply Chrome proxy";
+  setTimeout(() => { $("proxyState").textContent = ""; }, 4000);
+};
+
+$("bulkGo").onclick = async () => {
+  const raw = $("bulkUrls").value.trim();
+  if (!raw) { $("bulkState").textContent = "paste at least one URL"; return; }
+  $("bulkGo").disabled = true;
+  $("bulkState").textContent = "starting…";
+  try {
+    const niche = ($("bulkNiche").value || $("customNiche").value || "").trim();
+    const r = await fetch("/api/bulk-verify", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        urls: raw,
+        tech_stacks: selectedStacks(),
+        custom_niche: niche,
+        classify_niche: $("classifyNiche").checked,
+      })});
+    const j = await r.json();
+    if (j.ok) {
+      const skipped = (j.skipped_tld_count || 0);
+      $("bulkState").textContent =
+        `Queued ${j.queued} URLs${skipped ? ` · skipped ${skipped} .gov/.edu/.org` : ""}`
+        + ` · niche="${niche || "(none)"}" · job ${j.job_id.slice(0,14)}…`;
+      jobId = j.job_id;
+      results = []; renderResults();
+      $("go").disabled = true; $("stop").disabled = false;
+      if (poll) clearInterval(poll);
+      poll = setInterval(pollJob, 1500);
+      refreshJobs();
+    } else {
+      $("bulkState").textContent = "Error: " + (j.error || "unknown");
+    }
+  } catch (e) { $("bulkState").textContent = "Error: " + e; }
+  $("bulkGo").disabled = false;
+};
+
+$("copyTsv").onclick = async () => {
+  const header = ["domain","tech_stack","niche","confidence","url"];
+  const rows = [header, ...results.map(r=>[r.domain,(r.platforms||[]).join("|"),r.vertical||"",r.confidence||"",r.url])];
+  const tsv = rows.map(r=>r.map(v=>String(v).replace(/\t/g," ").replace(/\n/g," ")).join("\t")).join("\n");
+  try {
+    await navigator.clipboard.writeText(tsv);
+    $("copyTsvState").textContent = `✓ Copied ${results.length} rows — paste into Google Sheets`;
+  } catch (e) { $("copyTsvState").textContent = "Clipboard blocked: " + e; }
+  setTimeout(() => { $("copyTsvState").textContent = ""; }, 5000);
+};
+
+$("testModel").onclick = async () => {
+  const btn = $("testModel");
+  // Auto-save anything pending in the API Key / Model / Reasoning fields
+  // so you don't have to click Save first.
+  const pendingKey = $("apiKey").value.trim();
+  const pendingModel = $("model").value;
+  if (pendingKey || pendingModel) {
+    try {
+      await fetch("/api/config", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          ...(pendingKey ? {nvidia_api_key: pendingKey} : {}),
+          ...(pendingModel ? {nvidia_model: pendingModel} : {}),
+          nvidia_reasoning: $("reasoning").checked,
+        })
+      });
+      if (pendingKey) { $("apiKey").value = ""; }
+      await loadCfg();
+    } catch (e) {}
+  }
+  btn.disabled = true; btn.textContent = "Testing…";
+  $("testModelOut").innerHTML =
+    "Running 1-token completion — no timeout, will wait as long as the cold-start needs. <span class='muted'>(You can keep using the app meanwhile.)</span>";
+  $("testModelOut").style.color = "#9aa0aa";
+
+  // Ticker so user sees progress
+  const startedAt = Date.now();
+  const ticker = setInterval(() => {
+    const elapsed = ((Date.now() - startedAt) / 1000).toFixed(0);
+    $("testModelOut").innerHTML =
+      `⏳ Waiting for model response… <b>${elapsed}s</b> elapsed`;
+  }, 1000);
+
+  try {
+    const r = await fetch("/api/nvidia-test-model", {method:"POST"});
+    const j = await r.json();
+    clearInterval(ticker);
+    if (j.ok) {
+      const note = (j.elapsed_ms > 10000) ? " <span class='muted'>(slow cold-start — faster model = faster scrapes)</span>" : "";
+      $("testModelOut").innerHTML = `✓ Model "${j.model}" responded in <b>${j.elapsed_ms} ms</b>${note}`;
+      $("testModelOut").style.color = "#3ec28d";
+    } else {
+      // Pull live model list and suggest 3 alternatives that aren't the broken one
+      let suggestions = "";
+      try {
+        const m = await fetch("/api/models"); const mj = await m.json();
+        const others = (mj.models || []).filter(x => x !== j.model).slice(0, 3);
+        if (others.length) {
+          suggestions = "<br><span class='muted'>Try one of these (live from your NVIDIA account): " +
+            others.map(o => `<code>${o}</code>`).join(" · ") + "</span>";
+        }
+      } catch {}
+      $("testModelOut").innerHTML =
+        `✖ ${j.reason || "unknown error"} <span class="muted">(${j.elapsed_ms||0} ms)</span>${suggestions}`;
+      $("testModelOut").style.color = "#e15a5a";
+    }
+  } catch (e) {
+    clearInterval(ticker);
+    $("testModelOut").textContent = "✖ " + e;
+    $("testModelOut").style.color = "#e15a5a";
+  } finally {
+    btn.disabled = false; btn.textContent = "Test model";
+  }
+};
+
+$("testAll").onclick = async () => {
+  const btn = $("testAll");
+  btn.disabled = true; btn.textContent = "Testing all…";
+  $("testAllOut").innerHTML = "<span class='muted'>Probing every model in your NVIDIA catalog (1 token each, ~20s timeout per model)…</span>";
+  try {
+    const r = await fetch("/api/nvidia-test-all", {method:"POST"});
+    const j = await r.json();
+    if (!j.ok) {
+      $("testAllOut").innerHTML = `<span style="color:#e15a5a;">✖ ${j.error || "failed"}</span>`;
+      return;
+    }
+    const rows = (j.results || []).slice().sort((a,b) => {
+      if (a.ok !== b.ok) return a.ok ? -1 : 1;
+      return a.elapsed_ms - b.elapsed_ms;
+    });
+    const working = rows.filter(r => r.ok);
+    const fastest = working[0];
+    const tableRows = rows.map(r => {
+      const status = r.ok
+        ? `<span class="pill ok" style="font-size:10px;">${r.elapsed_ms} ms</span>`
+        : `<span class="pill bad" style="font-size:10px;">${r.reason}</span>`;
+      const select = r.ok
+        ? `<button data-mid="${r.model}" class="ghost selectModel" style="padding:1px 6px; font-size:10px;">Use</button>`
+        : "";
+      return `<tr>
+        <td style="padding:4px 6px;"><code style="font-size:11px;">${r.model}</code></td>
+        <td style="padding:4px 6px;">${status}</td>
+        <td style="padding:4px 6px;">${select}</td>
+      </tr>`;
+    }).join("");
+    $("testAllOut").innerHTML = `
+      <div style="margin-bottom:6px;">
+        <b>${working.length}/${rows.length}</b> models work on your account.
+        ${fastest ? `Fastest: <code>${fastest.model}</code> (${fastest.elapsed_ms} ms)` : ""}
+      </div>
+      <table style="width:100%; border-collapse:collapse; background:#0a0c10; border:1px solid var(--line); border-radius:6px;">
+        <thead><tr style="color:var(--mut); font-size:10px; text-transform:uppercase;">
+          <th style="text-align:left; padding:4px 6px;">Model</th>
+          <th style="text-align:left; padding:4px 6px;">Result</th>
+          <th style="padding:4px 6px;"></th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>`;
+    // Wire the per-row "Use" buttons
+    document.querySelectorAll(".selectModel").forEach(b => b.onclick = async () => {
+      const mid = b.dataset.mid;
+      await fetch("/api/config", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({nvidia_model: mid})});
+      await loadCfg();
+      refreshNvidiaStatus();
+      $("testAllOut").innerHTML += `<div style="color:#3ec28d; margin-top:6px;">✓ Switched model to <code>${mid}</code>.</div>`;
+    });
+  } catch (e) {
+    $("testAllOut").innerHTML = `<span style="color:#e15a5a;">✖ ${e}</span>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Test ALL models";
+  }
+};
+
+$("discNv").onclick = async () => {
+  if (!confirm("Disconnect the NVIDIA API key? It will be cleared from config.json.")) return;
+  const el = $("nvStatus");
+  el.className = "pill bad"; el.textContent = "● Disconnected";
+  el.style.background = "rgba(225,90,90,.2)"; el.style.color = "#e15a5a";
+  el.title = "key cleared";
+  try {
+    const r = await fetch("/api/disconnect-nvidia", {method:"POST"});
+    if (!r.ok) { alert("Server doesn't know /api/disconnect-nvidia — restart backend.py"); }
+  } catch (e) { alert("Disconnect failed: " + e); }
+  $("apiKey").value = ""; loadCfg();
+  setTimeout(refreshNvidiaStatus, 800);
+};
+
+$("go").onclick = async () => {
+  results = []; renderResults();
+  const body = {
+    keywords: $("keywords").value,
+    vertical: $("vertical").value,
+    custom_niche: $("customNiche").value,
+    tech_stacks: selectedStacks(),
+    classify_niche: $("classifyNiche").checked,
+    use_browser: $("useBrowser").checked,
+    country: $("country").value, state: $("state").value, city: $("city").value, area: $("area").value,
+    pages_per_query: parseInt($("pages").value || "1", 10),
+  };
+  const r = await fetch("/api/scrape", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); jobId = j.job_id;
+  $("go").disabled = true; $("stop").disabled = false;
+  poll = setInterval(pollJob, 1500);
+};
+
+$("stop").onclick = async () => {
+  if (!jobId) return;
+  $("stop").disabled = true;
+  try { await fetch(`/api/job/${jobId}/stop`, {method:"POST"}); } catch(e){}
+  // Keep polling so we can show the partial results that get filtered/saved.
+};
+
+let resumableJobId = null;
+
+function setResumeState(id, hint) {
+  resumableJobId = id;
+  $("resume").disabled = !id;
+  $("resumeHint").textContent = hint || "";
+}
+
+$("resume").onclick = async () => {
+  if (!resumableJobId) return;
+  $("resume").disabled = true;
+  $("resumeHint").textContent = "Resuming…";
+  try {
+    const r = await fetch(`/api/jobs/${resumableJobId}/continue`, {method:"POST"});
+    const j = await r.json();
+    if (j.ok) {
+      jobId = j.job_id;
+      results = []; renderResults();
+      $("go").disabled = true; $("stop").disabled = false;
+      $("resumeHint").textContent = "";
+      if (poll) clearInterval(poll);
+      poll = setInterval(pollJob, 1500);
+      refreshJobs();
+    } else {
+      $("resumeHint").textContent = "Resume failed: " + (j.error || "unknown");
+      $("resume").disabled = false;
+    }
+  } catch (e) {
+    $("resumeHint").textContent = "Resume failed: " + e;
+    $("resume").disabled = false;
+  }
+};
+
+async function detectResumable() {
+  // On page load (or after a job ends) scan Past Runs for the most recent
+  // job with unfinished work and offer to resume it.
+  try {
+    const r = await fetch("/api/jobs"); const j = await r.json();
+    for (const row of (j.jobs || [])) {
+      if (row.status === "running") continue;
+      const hasUnverified = (row.collected || 0) > (row.verified || 0);
+      const hasUnknown = (row.unknown_niche || 0) > 0;
+      if (hasUnverified || hasUnknown) {
+        const bits = [];
+        if (hasUnverified) bits.push(`${row.collected - row.verified} URLs to verify`);
+        if (hasUnknown) bits.push(`${row.unknown_niche} Unknown to re-classify`);
+        setResumeState(row.id, `Last job: ${bits.join(" · ")} — click ▶ Resume`);
+        return;
+      }
+    }
+    setResumeState(null, "");
+  } catch (e) {}
+}
+detectResumable();
+
+async function refreshJobs() {
+  const tb = $("tblJobs").querySelector("tbody"); tb.innerHTML = "";
+  try {
+    const r = await fetch("/api/jobs"); const j = await r.json();
+    for (const row of (j.jobs || [])) {
+      const when = new Date(row.created_at * 1000).toLocaleString();
+      const params = row.params || {};
+
+      const pill = (label, value, cls) => value
+        ? `<span class="pill ${cls||'mut'}" style="margin:1px 2px; font-size:10px;"><b>${label}:</b> ${value}</span>` : "";
+
+      const location = [params.area, params.city, params.state, params.country]
+        .filter(Boolean).join(", ");
+      const stacks = (params.tech_stacks || []).join(", ") || "(any)";
+      const keywords = params.keywords ? (params.keywords.length > 60
+        ? params.keywords.slice(0, 60) + "…" : params.keywords) : "";
+      const summary = [
+        params._bulk ? pill("type", "bulk-verify", "ok") : "",
+        keywords ? pill("keywords", keywords) : "",
+        params.custom_niche ? pill("niche", params.custom_niche, "ok") : "",
+        params.vertical && params.vertical !== "all" ? pill("vertical", params.vertical) : "",
+        location ? pill("location", location) : "",
+        pill("stacks", stacks),
+        params.pages_per_query ? pill("pages", params.pages_per_query) : "",
+        params.classify_niche === false ? pill("nvidia", "off", "bad") : "",
+      ].filter(Boolean).join("");
+      const statusColor = row.status === "done" ? "ok" :
+        (row.status === "error" ? "bad" :
+        (row.status === "running" && row.id !== jobId ? "bad" : "mut"));
+      const hasUnknown = (row.unknown_niche || 0) > 0;
+      // "running" rows are zombies only if they're not the job this browser
+      // session started. Allow recovery for those.
+      const isZombieRunning = row.status === "running" && row.id !== jobId;
+      const canContinue = (row.status !== "running" || isZombieRunning) &&
+        (row.collected > row.verified || hasUnknown);
+      const continueLabel = (row.collected > row.verified)
+        ? `▶ ${isZombieRunning ? "Recover" : "Continue"} (${row.collected - row.verified} left)`
+        : `↻ Re-classify ${row.unknown_niche} Unknown`;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td style="white-space:nowrap;">${when}</td>
+        <td><span class="pill ${statusColor}">${row.status}</span></td>
+        <td>${row.collected}</td>
+        <td>${row.verified}${hasUnknown ? ` <span class="pill bad" style="font-size:10px;">${row.unknown_niche} ?</span>` : ""}</td>
+        <td>${row.matched}</td>
+        <td style="font-size:11px; max-width:380px; line-height:1.6;">${summary}</td>
+        <td style="white-space:nowrap;">
+          ${canContinue ? `<button data-jid="${row.id}" class="ghost contJob" style="font-size:10px; padding:2px 6px; border-color:#5b8cff; color:#5b8cff; margin-right:4px;">${continueLabel}</button>` : ""}
+          <a class="pill mut" href="/api/jobs/${row.id}/csv" download style="text-decoration:none;">All CSV</a>
+          <a class="pill ok" href="/api/jobs/${row.id}/csv?accepted=1" download style="text-decoration:none; margin-left:4px;">Matched CSV</a>
+          <button data-jid="${row.id}" class="ghost delJob" style="font-size:10px; padding:2px 6px; border-color:#e15a5a; color:#e15a5a; margin-left:4px;">×</button>
+        </td>`;
+      tb.appendChild(tr);
+    }
+    document.querySelectorAll(".delJob").forEach(b => b.onclick = async () => {
+      if (!confirm("Delete this saved run?")) return;
+      await fetch(`/api/jobs/${b.dataset.jid}`, {method:"DELETE"});
+      refreshJobs();
+    });
+    document.querySelectorAll(".contJob").forEach(b => b.onclick = async () => {
+      b.disabled = true; b.textContent = "starting…";
+      const r = await fetch(`/api/jobs/${b.dataset.jid}/continue`, {method:"POST"});
+      const j = await r.json();
+      if (j.ok) {
+        jobId = j.job_id;
+        results = []; renderResults();
+        $("go").disabled = true; $("stop").disabled = false;
+        if (poll) clearInterval(poll);
+        poll = setInterval(pollJob, 1500);
+        refreshJobs();
+      } else {
+        alert("Continue failed: " + (j.error || "unknown"));
+      }
+    });
+  } catch (e) { console.error(e); }
+}
+$("refreshJobs").onclick = refreshJobs;
+refreshJobs();
+
+$("captchaResume").onclick = async () => {
+  if (!jobId) return;
+  $("captchaResume").disabled = true;
+  try {
+    await fetch(`/api/job/${jobId}/resume-captcha`, {method:"POST"});
+  } catch (e) {}
+  setTimeout(() => { $("captchaResume").disabled = false; }, 1500);
+};
+
+async function pollJob() {
+  if (!jobId) return;
+  const r = await fetch("/api/job/" + jobId); const j = await r.json();
+  $("progBar").style.width = (j.progress || 0) + "%";
+  const phase = j.phase || j.status || "idle";
+  $("progText").textContent = j.status + " · phase: " + phase + " — " + (j.progress || 0) + "%";
+  $("phasePill").textContent = phase;
+  $("phasePill").className = "pill " + (phase === "done" ? "ok" : "mut");
+  $("captchaBanner").style.display = (j.status === "paused-captcha") ? "block" : "none";
+
+  $("diffBadge").innerHTML = "";
+  if (j.niche_fallback) {
+    $("diffBadge").innerHTML = `<span class="pill bad">⚠ NVIDIA fallback</span> ` +
+      `Niche classification failed — these results were filtered by tech stack only. ` +
+      `Check the NVIDIA Connected pill above, then click <b>▶ Continue</b> on this run in Past Runs to re-classify.`;
+  }
+  if (j.diff && j.diff.prev_job_id) {
+    $("diffBadge").innerHTML = `<span class="pill ok">📊 DIFF</span> ` +
+      `<b>${j.diff.new_count}</b> new domains since previous run ` +
+      `(prev had ${j.diff.prev_total}). ` +
+      `<a href="/api/jobs/${j.diff.prev_job_id}/csv?accepted=1" download style="color:var(--acc);">Prev matched CSV ↓</a>`;
+  } else {
+    $("diffBadge").textContent = "";
+  }
+  $("log").textContent = (j.log || []).join("\n");
+  $("log").scrollTop = $("log").scrollHeight;
+
+  const collected = j.collected || [];
+  const verified = j.all_verified || [];
+  results = j.results || [];
+  const rejected = j.rejected || [];
+
+  $("cCount").textContent = collected.length;
+  $("vCount").textContent = verified.length;
+  $("mCount").textContent = results.length;
+  $("rCount").textContent = rejected.length;
+
+  renderResults();
+  renderAll(verified);
+
+  if (j.status === "done" || j.status === "stopped" || j.status === "error") {
+    clearInterval(poll); $("go").disabled = false; $("stop").disabled = true;
+    refreshJobs();
+    detectResumable();   // light up the Resume button if anything's left unfinished
+  }
+}
+
+function stackPills(arr) {
+  if (!arr || !arr.length) return '<span class="pill mut">Unknown</span>';
+  return arr.map(p => `<span class="pill ok" style="margin-right:3px;">${p}</span>`).join("");
+}
+
+function renderResults() {
+  const tb = $("tbl").querySelector("tbody"); tb.innerHTML = "";
+  for (const r of results) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.domain}</td><td>${stackPills(r.platforms)}</td>
+      <td>${r.vertical||""}</td><td>${(r.confidence*100|0)||""}${r.confidence?"%":""}</td>
+      <td><a href="${r.url}" target="_blank">${r.url}</a></td>`;
+    tb.appendChild(tr);
+  }
+}
+
+function renderAll(rows) {
+  const tb = $("tblAll").querySelector("tbody"); tb.innerHTML = "";
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    const acc = r.accepted ? '<span class="pill ok">yes</span>' : '<span class="pill bad">no</span>';
+    const isUnknown = !r.vertical || r.vertical === "Unknown";
+    const nicheCell = isUnknown
+      ? `<span class="muted">Unknown</span>
+         <button class="ghost rcOne" data-url="${encodeURIComponent(r.url)}"
+                 style="margin-left:6px; padding:1px 6px; font-size:10px; border-color:#5b8cff; color:#5b8cff;"
+                 title="Re-classify with NVIDIA">↻</button>`
+      : r.vertical;
+    tr.innerHTML = `<td><a href="${r.url}" target="_blank">${r.domain}</a></td>
+      <td>${stackPills(r.platforms)}</td><td>${nicheCell}</td>
+      <td>${(r.confidence*100|0)||""}${r.confidence?"%":""}</td><td>${acc}</td>`;
+    tb.appendChild(tr);
+  }
+  // Wire each per-row reclassify button
+  document.querySelectorAll(".rcOne").forEach(btn => btn.onclick = async () => {
+    if (!jobId) { alert("No job loaded for this view."); return; }
+    btn.disabled = true; btn.textContent = "…";
+    try {
+      const r = await fetch(`/api/jobs/${jobId}/reclassify-one`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({url: decodeURIComponent(btn.dataset.url)})
+      });
+      if (!r.ok || !(r.headers.get("content-type")||"").includes("application/json")) {
+        btn.disabled = false; btn.textContent = "↻";
+        alert(`Re-classify endpoint returned HTTP ${r.status}. The backend was probably not restarted after this feature was added — Ctrl+C the backend and run \`python backend.py\` again.`);
+        return;
+      }
+      const j = await r.json();
+      console.log("[reclassify-one]", j);
+      if (j.ok && j.row) {
+        const td = btn.closest("td");
+        const conf = j.row.confidence ? `${(j.row.confidence*100|0)}%` : "";
+        const verdict = j.row.vertical || "Unknown";
+        const reason = (j.row.reason || "").trim();
+        const successful = verdict && verdict !== "Unknown" && verdict !== "Other";
+
+        if (successful) {
+          td.innerHTML = `<span class="pill ok">${verdict}</span>
+            <span class="muted" style="font-size:10px;">${conf}</span>
+            <span class="muted" style="font-size:10px; margin-left:4px;">just updated</span>` +
+            (reason ? `<div class="muted" style="font-size:10px; margin-top:2px;">${reason.slice(0,120)}</div>` : "");
+        } else {
+          // NVIDIA still returned Unknown / Other — show why
+          const pill = verdict === "Other"
+            ? `<span class="pill bad">Other</span>`
+            : `<span class="pill bad">still Unknown</span>`;
+          td.innerHTML = `${pill}
+            <button class="ghost rcOne" data-url="${btn.dataset.url}"
+                    style="margin-left:6px; padding:1px 6px; font-size:10px; border-color:#5b8cff; color:#5b8cff;">↻ retry</button>
+            <div class="muted" style="font-size:10px; margin-top:2px; max-width:280px; color:#e15a5a;">
+              ${(reason||"NVIDIA returned no reason — likely a 404 on your current model. Pick a different one with <b>Test ALL models</b>.").slice(0,300)}
+            </div>`;
+          const newBtn = td.querySelector(".rcOne");
+          if (newBtn) newBtn.onclick = btn.onclick;
+        }
+
+        // Flash the row so the user clearly sees something happened
+        const tr = td.closest("tr");
+        if (tr) {
+          tr.style.transition = "background 0.2s";
+          tr.style.background = successful ? "rgba(62,194,141,.18)" : "rgba(225,90,90,.18)";
+          setTimeout(() => { tr.style.background = ""; }, 1500);
+        }
+      } else {
+        btn.disabled = false; btn.textContent = "↻";
+        alert("Re-classify failed: " + (j.error || "unknown"));
+      }
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "↻";
+      alert("Re-classify error: " + e);
+    }
+  });
+}
+
+function slug(s, max=40) {
+  return (s||"").toString().toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, max);
+}
+
+function csvFilename() {
+  const parts = [
+    slug($("keywords").value) || slug($("customNiche").value),
+    slug($("city").value) || slug($("state").value) || slug($("country").value),
+    slug(selectedStacks().join("-")),
+  ].filter(Boolean);
+  const ts = new Date().toISOString().slice(0,10);
+  const base = parts.join("_") || "scrape";
+  return `${base}_${ts}.csv`;
+}
+
+$("dl").onclick = () => {
+  const rows = [["domain","tech_stack","niche","confidence","url"],
+    ...results.map(r=>[r.domain,(r.platforms||[]).join("|"),r.vertical||"",r.confidence||"",r.url])];
+  const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download = csvFilename(); a.click();
+};
+
+$("vGo").onclick = async () => {
+  $("vOut").textContent = "Verifying…";
+  const r = await fetch("/api/verify", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({url: $("vUrl").value, custom_niche: $("customNiche").value})});
+  const j = await r.json();
+  $("vOut").innerHTML = `
+    <div>Tech stack: ${stackPills(j.platforms)}</div>
+    <div style="margin-top:6px;">Niche: <b>${j.vertical||"—"}</b> · ${(j.confidence*100|0)||0}%</div>
+    <div class="muted" style="margin-top:4px;">${j.reason||""}</div>`;
+};
+</script>
+</body>
+</html>
