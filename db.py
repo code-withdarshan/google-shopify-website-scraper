@@ -43,12 +43,21 @@ def init_db(app_dir: str) -> str:
                 reason       TEXT,
                 accepted     INTEGER,
                 verified_at  REAL NOT NULL,
+                emails       TEXT DEFAULT '',
+                phones       TEXT DEFAULT '',
+                socials      TEXT DEFAULT '',
                 UNIQUE(job_id, domain)
             );
             CREATE INDEX IF NOT EXISTS idx_urls_job ON urls(job_id);
             CREATE INDEX IF NOT EXISTS idx_ver_job ON verifications(job_id);
             """
         )
+        # Migrate older DBs: add contact columns if missing
+        for col in ("emails", "phones", "socials"):
+            try:
+                c.execute(f"ALTER TABLE verifications ADD COLUMN {col} TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass  # already exists
     return _DB_PATH
 
 
@@ -93,8 +102,9 @@ def record_verification(job_id: str, row: dict) -> None:
         try:
             c.execute(
                 "INSERT OR REPLACE INTO verifications "
-                "(job_id, url, domain, platforms, vertical, confidence, reason, accepted, verified_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
+                "(job_id, url, domain, platforms, vertical, confidence, reason, accepted, "
+                " verified_at, emails, phones, socials) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     job_id, row.get("url", ""), row.get("domain", ""),
                     ",".join(row.get("platforms") or []),
@@ -102,6 +112,9 @@ def record_verification(job_id: str, row: dict) -> None:
                     (row.get("reason") or "")[:500],
                     1 if row.get("accepted") else 0,
                     time.time(),
+                    ",".join(row.get("emails") or [])[:500],
+                    ",".join(row.get("phones") or [])[:500],
+                    json.dumps(row.get("socials") or {})[:2000],
                 ),
             )
         except Exception:
@@ -147,6 +160,12 @@ def get_job_verifications(job_id: str, accepted_only: bool = False) -> list[dict
             d = dict(r)
             d["platforms"] = [p for p in (d.get("platforms") or "").split(",") if p]
             d["accepted"] = bool(d.get("accepted"))
+            d["emails"] = [e for e in (d.get("emails") or "").split(",") if e]
+            d["phones"] = [p for p in (d.get("phones") or "").split(",") if p]
+            try:
+                d["socials"] = json.loads(d.get("socials") or "{}")
+            except Exception:
+                d["socials"] = {}
             out.append(d)
         return out
 

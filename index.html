@@ -76,6 +76,15 @@
         <input id="classifyNiche" type="checkbox" checked style="width:auto;"> Run NVIDIA niche classification
       </label>
       <label style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+        <input id="skipTechFilter" type="checkbox" style="width:auto;"> Skip tech-stack filter <span class="muted">(keep ANY niche-matching site)</span>
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+        <input id="extractContacts" type="checkbox" style="width:auto;"> Extract emails / phones / social handles <span class="muted">(slower, but populates the Outreach CSV)</span>
+      </label>
+      <div class="muted" style="font-size:11px; margin-left:24px;">
+        ⚠ Required for emails and socials in the Contacts column / Outreach CSV. Forgot to tick it? Use the <b>📇 Extract Contacts</b> button on any Past Run.
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:6px;">
         <input id="useBrowser" type="checkbox" checked style="width:auto;"> Use local Chrome (debugger) for search
       </label>
       <div id="browserState" class="muted" style="font-size:11px; margin-top:4px;"></div>
@@ -129,15 +138,26 @@
         <span id="nvStatus" class="pill mut" style="margin-left:8px;">checking…</span>
       </h2>
       <div id="nvDetail" class="muted" style="font-size:11px; margin:-4px 0 8px; min-height:14px;"></div>
-      <label>API Key</label>
-      <input id="apiKey" type="password" placeholder="nvapi-…">
+      <label>
+        API Key
+        <span id="keySavedBadge" class="pill mut" style="margin-left:6px; font-size:10px;">not saved</span>
+      </label>
+      <div style="position:relative;">
+        <input id="apiKey" type="password" placeholder="nvapi-…" style="padding-right:60px;">
+        <button id="toggleKey" type="button"
+                style="position:absolute; right:50px; top:50%; transform:translateY(-50%); background:transparent; border:0; color:var(--mut); cursor:pointer; padding:2px 6px; font-size:14px;"
+                title="Show / hide API key">👁</button>
+        <button id="quickSaveKey" type="button"
+                style="position:absolute; right:6px; top:50%; transform:translateY(-50%); background:var(--acc); color:#fff; border:0; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; font-weight:600;">Save</button>
+      </div>
+      <div id="quickSaveOut" class="muted" style="font-size:11px; margin-top:2px; min-height:14px;"></div>
       <label>Reasoning Model</label>
       <select id="model"></select>
       <label style="display:flex; align-items:center; gap:8px; margin-top:10px;">
         <input id="reasoning" type="checkbox" checked style="width:auto;"> Enable chain-of-thought reasoning
       </label>
       <div style="margin-top:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button id="saveCfg" class="ghost">Save</button>
+        <button id="saveCfg" class="ghost">Save all</button>
         <button id="testModel" class="ghost" style="border-color:#5b8cff; color:#5b8cff;">Test model</button>
         <button id="testAll" class="ghost" style="border-color:#5b8cff; color:#5b8cff;">Test ALL models</button>
         <button id="discNv" class="ghost" style="border-color:#e15a5a; color:#e15a5a;">Disconnect</button>
@@ -175,9 +195,10 @@
 
     <div class="card" style="margin-top:16px;">
       <h2>Matched Results</h2>
-      <table id="tbl"><thead><tr><th>Domain</th><th>Tech stack</th><th>Niche</th><th>Conf.</th><th>URL</th></tr></thead><tbody></tbody></table>
+      <table id="tbl"><thead><tr><th>Domain</th><th>Tech stack</th><th>Niche</th><th>Conf.</th><th>Contacts</th><th>URL</th></tr></thead><tbody></tbody></table>
       <div style="margin-top:10px;">
         <button id="dl" class="ghost">Download CSV</button>
+        <button id="dlOutreach" class="ghost" style="margin-left:6px; border-color:#5b8cff; color:#5b8cff;">Outreach CSV (with contacts)</button>
         <button id="copyTsv" class="ghost" style="margin-left:6px;">Copy as TSV (paste into Sheets)</button>
         <span id="copyTsvState" class="muted" style="margin-left:8px;"></span>
       </div>
@@ -319,6 +340,45 @@ function selectedStacks() {
   return Array.from(document.querySelectorAll("#stacks input:checked")).map(i => i.value);
 }
 
+// Map raw NVIDIA model IDs → clean friendly dropdown labels with speed hints.
+const MODEL_LABELS = {
+  "nvidia/llama-3.3-nemotron-super-49b-v1.5": "Nemotron Super 49B (recommended)",
+  "nvidia/llama-3.3-nemotron-super-49b-v1":   "Nemotron Super 49B",
+  "nvidia/llama-3.1-nemotron-51b-instruct":   "Nemotron 51B",
+  "nvidia/llama-3.1-nemotron-70b-instruct":   "Nemotron 70B",
+  "nvidia/llama-3.1-nemotron-nano-8b-v1":     "Nemotron Nano 8B (fastest)",
+  "nvidia/llama-3.1-nemotron-ultra-253b-v1":  "Nemotron Ultra 253B (best, slow)",
+  "meta/llama-3.3-70b-instruct":              "Llama 3.3 70B (recommended)",
+  "meta/llama-3.1-70b-instruct":              "Llama 3.1 70B",
+  "meta/llama-3.1-8b-instruct":               "Llama 3.1 8B (fastest)",
+  "meta/llama-3.1-405b-instruct":             "Llama 3.1 405B (best, slow)",
+  "microsoft/phi-3.5-mini-instruct":          "Phi-3.5 Mini (fastest)",
+  "mistralai/mistral-7b-instruct-v0.3":       "Mistral 7B (fast)",
+  "mistralai/mistral-nemotron":               "Mistral Nemotron (fast)",
+  "mistralai/mistral-large-2-instruct":       "Mistral Large 2",
+  "qwen/qwen2.5-7b-instruct":                 "Qwen 2.5 7B (fast)",
+  "qwen/qwq-32b":                             "QwQ 32B (reasoning)",
+  "deepseek-ai/deepseek-r1":                  "DeepSeek R1 (reasoning, slow)",
+  "deepseek-ai/deepseek-r1-0528":             "DeepSeek R1 (0528)",
+  "deepseek-ai/deepseek-r1-distill-qwen-32b": "DeepSeek R1 Distill 32B (fast reasoning)",
+  "deepseek-ai/deepseek-r1-distill-llama-70b":"DeepSeek R1 Distill 70B",
+  "deepseek-ai/deepseek-v3.1":                "DeepSeek V3.1 (fast)",
+  "deepseek-ai/deepseek-v3-0324":             "DeepSeek V3 (0324)",
+  "deepseek-ai/deepseek-v3":                  "DeepSeek V3 (fast)",
+};
+
+function friendlyModelName(id) {
+  if (MODEL_LABELS[id]) return MODEL_LABELS[id];
+  // Auto-prettify unknown IDs: "vendor/llama-3.1-8b-instruct" → "Llama 3.1 8B"
+  let n = (id || "").split("/").pop()
+    .replace(/-instruct.*$/i, "")
+    .replace(/-v\d.*$/i, "")
+    .replace(/[-_]/g, " ")
+    .replace(/\b(\d+)b\b/gi, "$1B")
+    .replace(/\b\w/g, ch => ch.toUpperCase());
+  return n || id;
+}
+
 async function loadCfg() {
   const [cR, mR] = await Promise.all([fetch("/api/config"), fetch("/api/models")]);
   const c = await cR.json(); const m = await mR.json();
@@ -327,18 +387,71 @@ async function loadCfg() {
   if ($("maxDelay")) $("maxDelay").value = c.max_delay_sec ?? 4;
   const sel = $("model"); sel.innerHTML = "";
   for (const id of (m.models||[])) {
-    const o = document.createElement("option"); o.value = id; o.textContent = id;
+    const o = document.createElement("option"); o.value = id; o.textContent = friendlyModelName(id);
     if (id === c.nvidia_model) o.selected = true;
     sel.appendChild(o);
   }
   if (c.nvidia_model && !Array.from(sel.options).some(o=>o.value===c.nvidia_model)) {
-    const o = document.createElement("option"); o.value = c.nvidia_model; o.textContent = c.nvidia_model + " (custom)";
+    const o = document.createElement("option"); o.value = c.nvidia_model;
+    o.textContent = friendlyModelName(c.nvidia_model) + " (custom)";
     o.selected = true; sel.appendChild(o);
   }
   $("reasoning").checked = c.nvidia_reasoning !== false;
   $("cfgState").textContent = c.nvidia_api_key ? "Key set · " + (c.nvidia_model||"") : "No key configured";
+
+  // Update the "saved" badge next to the API Key label
+  const badge = $("keySavedBadge");
+  if (badge) {
+    if (c.nvidia_api_key) {
+      badge.className = "pill ok"; badge.textContent = "saved";
+      badge.title = "Last saved key: " + c.nvidia_api_key;
+    } else {
+      badge.className = "pill mut"; badge.textContent = "not saved";
+      badge.title = "";
+    }
+  }
 }
 loadCfg();
+
+// Show / hide API key
+$("toggleKey").onclick = () => {
+  const inp = $("apiKey");
+  if (inp.type === "password") { inp.type = "text"; $("toggleKey").textContent = "🙈"; }
+  else                          { inp.type = "password"; $("toggleKey").textContent = "👁"; }
+};
+
+// Quick-save just the API key (the most common action)
+$("quickSaveKey").onclick = async () => {
+  const key = $("apiKey").value.trim();
+  if (!key) {
+    $("quickSaveOut").textContent = "Paste your nvapi-… key first.";
+    $("quickSaveOut").style.color = "#e15a5a";
+    return;
+  }
+  if (!/^nvapi[-_]/i.test(key)) {
+    $("quickSaveOut").textContent = "⚠ That doesn't look like an NVIDIA Build key (should start with nvapi-).";
+    $("quickSaveOut").style.color = "#e15a5a";
+    return;
+  }
+  $("quickSaveKey").disabled = true;
+  $("quickSaveKey").textContent = "Saving…";
+  try {
+    await fetch("/api/config", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({nvidia_api_key: key})});
+    $("apiKey").value = "";
+    $("apiKey").type = "password"; $("toggleKey").textContent = "👁";
+    $("quickSaveOut").textContent = "✓ API key saved to config.json — running connection check…";
+    $("quickSaveOut").style.color = "#3ec28d";
+    await loadCfg();
+    refreshNvidiaStatus();
+  } catch (e) {
+    $("quickSaveOut").textContent = "✖ Save failed: " + e;
+    $("quickSaveOut").style.color = "#e15a5a";
+  } finally {
+    $("quickSaveKey").disabled = false;
+    $("quickSaveKey").textContent = "Save";
+  }
+};
 
 $("saveCfg").onclick = async () => {
   await fetch("/api/config", {method:"POST", headers:{"Content-Type":"application/json"},
@@ -551,6 +664,8 @@ $("go").onclick = async () => {
     custom_niche: $("customNiche").value,
     tech_stacks: selectedStacks(),
     classify_niche: $("classifyNiche").checked,
+    skip_tech_filter: $("skipTechFilter").checked,
+    extract_contacts: $("extractContacts").checked,
     use_browser: $("useBrowser").checked,
     country: $("country").value, state: $("state").value, city: $("city").value, area: $("area").value,
     pages_per_query: parseInt($("pages").value || "1", 10),
@@ -670,8 +785,10 @@ async function refreshJobs() {
         <td style="font-size:11px; max-width:380px; line-height:1.6;">${summary}</td>
         <td style="white-space:nowrap;">
           ${canContinue ? `<button data-jid="${row.id}" class="ghost contJob" style="font-size:10px; padding:2px 6px; border-color:#5b8cff; color:#5b8cff; margin-right:4px;">${continueLabel}</button>` : ""}
+          <button data-jid="${row.id}" class="ghost extractJob" style="font-size:10px; padding:2px 6px; border-color:#5b8cff; color:#5b8cff; margin-right:4px;">📇 Extract Contacts</button>
           <a class="pill mut" href="/api/jobs/${row.id}/csv" download style="text-decoration:none;">All CSV</a>
           <a class="pill ok" href="/api/jobs/${row.id}/csv?accepted=1" download style="text-decoration:none; margin-left:4px;">Matched CSV</a>
+          <a class="pill ok" href="/api/jobs/${row.id}/outreach-csv?accepted=1" download style="text-decoration:none; margin-left:4px; background:rgba(91,140,255,.18); color:#5b8cff;">Outreach CSV</a>
           <button data-jid="${row.id}" class="ghost delJob" style="font-size:10px; padding:2px 6px; border-color:#e15a5a; color:#e15a5a; margin-left:4px;">×</button>
         </td>`;
       tb.appendChild(tr);
@@ -680,6 +797,28 @@ async function refreshJobs() {
       if (!confirm("Delete this saved run?")) return;
       await fetch(`/api/jobs/${b.dataset.jid}`, {method:"DELETE"});
       refreshJobs();
+    });
+    document.querySelectorAll(".extractJob").forEach(b => b.onclick = async () => {
+      const jid = b.dataset.jid;
+      b.disabled = true; b.textContent = "📇 starting…";
+      try {
+        const r = await fetch(`/api/jobs/${jid}/extract-contacts`, {method:"POST"});
+        const j = await r.json();
+        if (j.ok) {
+          jobId = jid;
+          if (poll) clearInterval(poll);
+          poll = setInterval(pollJob, 1500);
+          $("go").disabled = true; $("stop").disabled = false;
+          b.textContent = "📇 running…";
+          refreshJobs();
+        } else {
+          alert("Extract failed: " + (j.error || "unknown — restart backend?"));
+          b.disabled = false; b.textContent = "📇 Extract Contacts";
+        }
+      } catch (e) {
+        alert("Extract error: " + e);
+        b.disabled = false; b.textContent = "📇 Extract Contacts";
+      }
     });
     document.querySelectorAll(".contJob").forEach(b => b.onclick = async () => {
       b.disabled = true; b.textContent = "starting…";
@@ -762,15 +901,86 @@ function stackPills(arr) {
   return arr.map(p => `<span class="pill ok" style="margin-right:3px;">${p}</span>`).join("");
 }
 
+function contactsCell(r) {
+  const emails = r.emails || [];
+  const phones = r.phones || [];
+  const socials = r.socials || {};
+  const nSocial = Object.values(socials).reduce((a, v) => a + (v ? v.length : 0), 0);
+  if (!emails.length && !phones.length && !nSocial) {
+    return `<span class="muted">—</span>
+      <button class="ghost extractOne" data-url="${encodeURIComponent(r.url)}"
+              style="margin-left:6px; padding:1px 6px; font-size:10px; border-color:#5b8cff; color:#5b8cff;"
+              title="Extract emails / phones / socials for this URL">📇</button>`;
+  }
+  const tip = [
+    emails.length ? "Emails:\n" + emails.join("\n") : "",
+    phones.length ? "Phones:\n" + phones.join("\n") : "",
+    nSocial ? "Socials:\n" + Object.entries(socials)
+      .map(([k,v])=>`${k}: ${(v||[]).join(", ")}`).join("\n") : "",
+  ].filter(Boolean).join("\n\n");
+  return `<span title="${tip.replace(/"/g,'&quot;')}" style="cursor:help;">` +
+    (emails.length ? `<span class="pill ok" style="font-size:10px;">📧 ${emails.length}</span> ` : "") +
+    (phones.length ? `<span class="pill ok" style="font-size:10px;">📞 ${phones.length}</span> ` : "") +
+    (nSocial    ? `<span class="pill ok" style="font-size:10px;">🔗 ${nSocial}</span>` : "") +
+    "</span>";
+}
+
+function wireExtractOneButtons() {
+  document.querySelectorAll(".extractOne").forEach(btn => btn.onclick = async () => {
+    if (!jobId) { alert("No job loaded — extract from Past Runs instead."); return; }
+    const url = decodeURIComponent(btn.dataset.url);
+    const td = btn.closest("td");
+    btn.disabled = true; btn.textContent = "…";
+    try {
+      const r = await fetch(`/api/jobs/${jobId}/extract-one`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({url})
+      });
+      if (!r.ok || !(r.headers.get("content-type")||"").includes("application/json")) {
+        alert("Extract endpoint missing — restart the backend (python backend.py).");
+        btn.disabled = false; btn.textContent = "📇"; return;
+      }
+      const j = await r.json();
+      if (j.ok && j.contacts) {
+        // Update the row in `results` AND `all_verified` so it re-renders correctly next poll
+        for (const r0 of results) {
+          if (r0.url === url) {
+            r0.emails = j.contacts.emails || [];
+            r0.phones = j.contacts.phones || [];
+            r0.socials = j.contacts.socials || {};
+          }
+        }
+        td.innerHTML = contactsCell({url, emails: j.contacts.emails, phones: j.contacts.phones, socials: j.contacts.socials});
+        wireExtractOneButtons(); // re-wire if the cell got a fresh 📇 (empty result)
+        // Flash row green
+        const tr = td.closest("tr");
+        if (tr) {
+          tr.style.transition = "background 0.2s";
+          tr.style.background = "rgba(62,194,141,.18)";
+          setTimeout(() => { tr.style.background = ""; }, 1200);
+        }
+      } else {
+        btn.disabled = false; btn.textContent = "📇";
+        alert("Extract failed: " + (j.error || "unknown"));
+      }
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "📇";
+      alert("Error: " + e);
+    }
+  });
+}
+
 function renderResults() {
   const tb = $("tbl").querySelector("tbody"); tb.innerHTML = "";
   for (const r of results) {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${r.domain}</td><td>${stackPills(r.platforms)}</td>
       <td>${r.vertical||""}</td><td>${(r.confidence*100|0)||""}${r.confidence?"%":""}</td>
+      <td>${contactsCell(r)}</td>
       <td><a href="${r.url}" target="_blank">${r.url}</a></td>`;
     tb.appendChild(tr);
   }
+  wireExtractOneButtons();
 }
 
 function renderAll(rows) {
@@ -866,6 +1076,11 @@ function csvFilename() {
   const base = parts.join("_") || "scrape";
   return `${base}_${ts}.csv`;
 }
+
+$("dlOutreach").onclick = () => {
+  if (!jobId) { alert("Start or load a job first."); return; }
+  window.location.href = `/api/jobs/${jobId}/outreach-csv?accepted=1`;
+};
 
 $("dl").onclick = () => {
   const rows = [["domain","tech_stack","niche","confidence","url"],

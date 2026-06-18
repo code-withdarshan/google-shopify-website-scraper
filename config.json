@@ -1,5 +1,5 @@
 {
-  "nvidia_api_key": "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",
+  "nvidia_api_key": "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",
   "nvidia_base_url": "https://integrate.api.nvidia.com/v1",
   "nvidia_model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
   "nvidia_reasoning": true,

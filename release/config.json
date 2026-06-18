@@ -1,0 +1,15 @@
+﻿{
+    "nvidia_api_key":  "",
+    "nvidia_base_url":  "https://integrate.api.nvidia.com/v1",
+    "nvidia_model":  "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    "nvidia_reasoning":  true,
+    "chrome_remote_port":  9222,
+    "proxy_url":  "",
+    "min_delay_sec":  1.5,
+    "max_delay_sec":  4,
+    "verticals":  [
+                      "Jewelry",
+                      "Fashion",
+                      "Retail"
+                  ]
+}

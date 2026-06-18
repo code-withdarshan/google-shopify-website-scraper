@@ -53,6 +53,20 @@ if exist release rmdir /s /q release
 mkdir release
 copy /Y dist\ShopifyVerticalScraper.exe release\ >nul
 copy /Y README_END_USER.md release\README.md >nul
+
+echo  - Writing a CLEAN, key-free config.json into release (no API key shipped)...
+powershell -NoProfile -Command ^
+  "$cfg = [ordered]@{ nvidia_api_key=''; nvidia_base_url='https://integrate.api.nvidia.com/v1'; nvidia_model='nvidia/llama-3.3-nemotron-super-49b-v1.5'; nvidia_reasoning=$true; chrome_remote_port=9222; proxy_url=''; min_delay_sec=1.5; max_delay_sec=4.0; verticals=@('Jewelry','Fashion','Retail') }; $cfg | ConvertTo-Json | Set-Content -Encoding UTF8 'release\config.json'"
+
+echo  - Safety check: ensure no nvapi- key leaked into the release folder...
+powershell -NoProfile -Command ^
+  "$hits = Select-String -Path 'release\*' -Pattern 'nvapi-' -SimpleMatch -ErrorAction SilentlyContinue; if ($hits) { Write-Host '!! WARNING: an nvapi- key was found in the release folder:' -ForegroundColor Red; $hits | ForEach-Object { Write-Host $_.Path }; exit 1 } else { Write-Host '   OK - no API key found in release folder.' -ForegroundColor Green }"
+if errorlevel 1 (
+  echo.
+  echo ABORTING: a key was detected in the release folder. Not zipping.
+  pause & exit /b 1
+)
+
 powershell -NoProfile -Command "Compress-Archive -Path release\* -DestinationPath ShopifyVerticalScraper.zip -Force"
 
 echo.
