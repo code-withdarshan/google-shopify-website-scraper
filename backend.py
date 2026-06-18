@@ -66,14 +66,34 @@ DEFAULT_CONFIG = {
 }
 
 # Curated fallback list of NVIDIA Build models (used only when /api/models can't
-# fetch the live catalog). Keep these to known-good current model IDs.
+# fetch the live catalog). Ordered by speed:quality balance for niche
+# classification — fastest acceptable model first.
 NVIDIA_REASONING_MODELS = [
-    "deepseek-ai/deepseek-r1",
-    "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-    "nvidia/llama-3.3-nemotron-super-49b-v1",
+    # ── Fast small models (≤8B params, ~1s responses) ────────────────────
+    "nvidia/llama-3.1-nemotron-nano-8b-v1",
+    "meta/llama-3.1-8b-instruct",
+    "microsoft/phi-3.5-mini-instruct",
+    "mistralai/mistral-7b-instruct-v0.3",
+    "qwen/qwen2.5-7b-instruct",
+    # ── Mid-size models (~30B, fast + accurate) ──────────────────────────
     "qwen/qwq-32b",
-    "deepseek-ai/deepseek-r1-distill-llama-70b",
+    "deepseek-ai/deepseek-r1-distill-qwen-32b",
+    "mistralai/mistral-nemotron",
+    # ── Strong reasoning + general (49B–70B) ─────────────────────────────
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    "nvidia/llama-3.3-nemotron-super-49b-v1",
+    "nvidia/llama-3.1-nemotron-51b-instruct",
     "meta/llama-3.3-70b-instruct",
+    "meta/llama-3.1-70b-instruct",
+    "deepseek-ai/deepseek-r1-distill-llama-70b",
+    # ── DeepSeek family (R1 reasoning + V3 fast/chat) ────────────────────
+    "deepseek-ai/deepseek-r1",
+    "deepseek-ai/deepseek-r1-0528",
+    "deepseek-ai/deepseek-v3.1",
+    "deepseek-ai/deepseek-v3-0324",
+    "deepseek-ai/deepseek-v3",
+    # ── Heavy hitters (slow but best) ────────────────────────────────────
+    "nvidia/llama-3.1-nemotron-ultra-253b-v1",
     "meta/llama-3.1-405b-instruct",
 ]
 
@@ -936,52 +956,131 @@ def multi_search(query: str, num: int = 20, cookies=None, push=None) -> list[str
 # Shopify fingerprint
 # ----------------------------------------------------------------------------
 TECH_STACK_FINGERPRINTS = {
+    # ── E-commerce platforms ──────────────────────────────────────────────
     "Shopify": ["cdn.shopify.com", "myshopify.com", "shopify.theme",
-                "shopify-section", "/cdn/shop/", "x-shopify-stage", "x-shopid"],
-    "WordPress": ["wp-content", "wp-includes", "wp-json", "/wp-admin", 'name="generator" content="wordpress'],
-    "WooCommerce": ["woocommerce", "wc-blocks", "wc_add_to_cart", "wp-content/plugins/woocommerce"],
-    "Wix": ["static.wixstatic.com", "wix-code", "wixsite.com", "x-wix-", "_wixcss", "x-wix-request-id"],
+                "shopify-section", "/cdn/shop/", "x-shopify-stage", "x-shopid",
+                "x-shardid", "shopify-features", "window.shopify"],
+    "Salesforce Commerce": ["demandware", "dwstatic", "/on/demandware.store/",
+                "/dw/image/", "dwac_", "x-dw-", "salesforce commerce", "sfcc",
+                "demandware.edgesuite.net", "/dw/shop/", "dwfrm_"],
+    "BigCommerce": ["bigcommerce.com", "stencilbootstrap", "x-bc-", "mybigcommerce.com",
+                "cdn11.bigcommerce.com", "bigcommerce-labs"],
+    "WooCommerce": ["woocommerce", "wc-blocks", "wc_add_to_cart", "wp-content/plugins/woocommerce",
+                "woocommerce-page", "wc-ajax"],
+    "Magento": ["mage.cookies", "/skin/frontend/", "mage/cookies", "magento",
+                "/static/version", "mage-translation", "x-magento-", "/pub/static/",
+                "magento_", "mage-init"],
+    "Salla": ["salla.sa", "cdn.salla.network", "salla-"],
+    "Zid": ["zid.store", "cdn.zid.sa"],
+    "PrestaShop": ["prestashop", "/img/p/", "presta-", "id_product"],
+    "Ecwid": ["ecwid", "app.ecwid.com"],
+    "Squarespace Commerce": ["squarespace-commerce"],
+    # ── CMS / website builders ────────────────────────────────────────────
+    "WordPress": ["wp-content", "wp-includes", "wp-json", "/wp-admin",
+                'name="generator" content="wordpress', "wp-block-", "wp-emoji"],
+    "Wix": ["static.wixstatic.com", "wix-code", "wixsite.com", "x-wix-", "_wixcss",
+                "x-wix-request-id", "wixstatic", "wix.com", "_wixapps"],
     "Squarespace": ["squarespace.com", "static1.squarespace.com", "static.squarespace.com",
-                   "squarespace_context", "sqs-block", "squarespace-cdn"],
-    "Webflow": ["webflow.com", "data-wf-page", ".webflow.io", "webflow.js", "wf-page"],
+                   "squarespace_context", "sqs-block", "squarespace-cdn", "this.squarespace"],
+    "Webflow": ["webflow.com", "data-wf-page", ".webflow.io", "webflow.js", "wf-page", "w-mod-"],
     "GoHighLevel": ["msgsndr.com", "gohighlevel", "hl-builder", "leadconnectorhq.com", "highlevelpages.com"],
-    "BigCommerce": ["bigcommerce.com", "stencilbootstrap", "x-bc-", "mybigcommerce.com"],
-    "Magento": ["mage.cookies", "/skin/frontend/", "mage/cookies", "magento", "/static/version"],
-    "Drupal": ["drupal.settings", "/sites/default/files", "x-generator: drupal", 'content="drupal'],
-    "Joomla": ["/components/com_", "joomla!", "joomla.javascript"],
-    "Ghost": ["ghost.io", "/ghost/", 'content="ghost', "ghost-sdk"],
-    "Framer": ["framer.com", "framerusercontent.com", "data-framer-"],
-    "Duda": ["dudaone.com", "multiscreensite.com", "d_ssr"],
-    "Weebly": ["weebly.com", "weeblycloud", "weebly-footer"],
-    "ClickFunnels": ["clickfunnels.com", "etison.com", "cfgenerator"],
-    "Kajabi": ["kajabi.com", "kajabi-cdn"],
+    "Drupal": ["drupal.settings", "/sites/default/files", "x-generator: drupal",
+               'content="drupal', "drupal-", "/core/misc/drupal"],
+    "Joomla": ["/components/com_", "joomla!", "joomla.javascript", "/media/jui/", "option=com_"],
+    "Ghost": ["ghost.io", "/ghost/", 'content="ghost', "ghost-sdk", "casper"],
+    "Framer": ["framer.com", "framerusercontent.com", "data-framer-", "framer-"],
+    "Duda": ["dudaone.com", "multiscreensite.com", "d_ssr", "irp.cdn-website.com"],
+    "Weebly": ["weebly.com", "weeblycloud", "weebly-footer", "editmysite.com"],
+    "ClickFunnels": ["clickfunnels.com", "etison.com", "cfgenerator", "myclickfunnels"],
+    "Kajabi": ["kajabi.com", "kajabi-cdn", "kajabi-storefronts"],
     "Cargo": ["cargocollective.com", "cargo.site"],
-    "Next.js": ["__next_data__", "_next/static", "/_next/data/"],
-    "React": ["react-dom", "data-reactroot", "_reactrootcontainer"],
+    "HubSpot": ["hs-scripts.com", "hubspot", "hsforms.com", "hs-sites.com", "hubspotusercontent"],
+    "Shopline": ["shoplineapp.com", "shopline"],
+    # ── JS frameworks (rendering tech) ────────────────────────────────────
+    "Next.js": ["__next_data__", "_next/static", "/_next/data/", "next/dist", "__next"],
+    "Nuxt.js": ["__nuxt__", "/_nuxt/", "nuxt-link", "data-nuxt", "window.__nuxt",
+                "nuxt.js", "_nuxt/entry"],
+    "Vue.js": ["vue.js", "data-v-", "data-server-rendered", "__vue__", "vue-router"],
+    "React": ["react-dom", "data-reactroot", "_reactrootcontainer", "__reactcontainer",
+              "react.production.min"],
+    "Angular": ["ng-version", "angular.js", "ng-app", "_nghost", "_ngcontent"],
+    "Gatsby": ["___gatsby", "gatsby-", "/page-data/"],
+    "Svelte": ["svelte-", "__svelte"],
 }
+
+# Some platforms IMPLY others (e.g. WooCommerce runs on WordPress).
+TECH_IMPLIES = {
+    "WooCommerce": "WordPress",
+}
+
+# Platforms that are "real" e-commerce/CMS — distinguish from pure JS frameworks
+# so a site detected as ONLY a framework is flagged for deeper inspection.
+JS_FRAMEWORK_ONLY = {"Next.js", "Nuxt.js", "Vue.js", "React", "Angular", "Gatsby", "Svelte"}
 
 ALL_TECH_STACKS = list(TECH_STACK_FINGERPRINTS.keys())
 
 
-def detect_tech_stack(url: str) -> dict:
-    """Return {platforms:[...], evidence:{platform:[markers]}, final_url, ok}."""
-    try:
-        r = requests.get(url, headers={"User-Agent": UA}, timeout=10, allow_redirects=True)
-        body = r.text[:300_000].lower()
-        hdrs = " ".join(f"{k}:{v}" for k, v in r.headers.items()).lower()
-        blob = body + " " + hdrs
-        platforms, evidence = [], {}
-        for plat, markers in TECH_STACK_FINGERPRINTS.items():
-            hits = [m for m in markers if m.lower() in blob]
-            if hits:
-                platforms.append(plat)
-                evidence[plat] = hits[:3]
-        # WooCommerce implies WordPress — order matters for display
-        if "WooCommerce" in platforms and "WordPress" not in platforms:
-            platforms.append("WordPress")
-        return {"platforms": platforms, "evidence": evidence, "final_url": r.url, "ok": True}
-    except Exception as e:
-        return {"platforms": [], "evidence": {}, "final_url": url, "ok": False, "error": str(e)}
+def _scan_tech(blob: str) -> tuple[list, dict]:
+    """Run all fingerprints against a lowercased html+headers blob."""
+    platforms, evidence = [], {}
+    for plat, markers in TECH_STACK_FINGERPRINTS.items():
+        hits = [m for m in markers if m.lower() in blob]
+        if hits:
+            platforms.append(plat)
+            evidence[plat] = hits[:3]
+    for child, parent in TECH_IMPLIES.items():
+        if child in platforms and parent not in platforms:
+            platforms.append(parent)
+    return platforms, evidence
+
+
+def detect_tech_stack(url: str, push=None) -> dict:
+    """Fingerprint the site's tech stack. Strategy:
+       1. Fetch with 3 UA fallbacks (Chrome → Safari → Googlebot)
+       2. Scan HTML + response headers against all fingerprints
+       3. If nothing found OR only a JS framework, render via Chrome CDP and re-scan
+          (catches Nuxt/Next/Vue/SF-Commerce SPAs whose markers load client-side)
+    """
+    final_url = url
+    blob = ""
+    ok = False
+    # ----- 1. Multi-UA static fetch -----
+    for hdrs in _CONTACT_UA_FALLBACKS:
+        try:
+            r = requests.get(url, headers=hdrs, timeout=12, allow_redirects=True)
+            if r.status_code < 400 and r.text:
+                final_url = r.url
+                hdr_str = " ".join(f"{k}:{v}" for k, v in r.headers.items()).lower()
+                blob = (r.text[:400_000].lower()) + " " + hdr_str
+                ok = True
+                break
+        except Exception:
+            continue
+
+    platforms, evidence = _scan_tech(blob) if blob else ([], {})
+
+    # ----- 2. SPA render fallback -----
+    # Trigger when: no platform found, OR only JS frameworks (markers often
+    # inject after hydration), OR fetch was blocked entirely.
+    only_framework = bool(platforms) and all(p in JS_FRAMEWORK_ONLY for p in platforms)
+    if (not platforms or only_framework or not ok):
+        cfg_now = load_config()
+        port = cfg_now.get("chrome_remote_port", 9222)
+        if _debugger_alive(port):
+            if push: push(f"    [tech] {root_domain(url)} → rendering in Chrome for deeper detection…")
+            rendered = _render_via_cdp(url, port=port, push=push)
+            if rendered:
+                rblob = rendered.lower()
+                rp, re_ = _scan_tech(rblob)
+                # Merge — keep evidence from both passes
+                for p in rp:
+                    if p not in platforms:
+                        platforms.append(p)
+                        evidence[p] = re_.get(p, [])
+                ok = True
+                final_url = url if final_url == url else final_url
+
+    return {"platforms": platforms, "evidence": evidence, "final_url": final_url, "ok": ok or bool(platforms)}
 
 
 def root_domain(url: str) -> str:
@@ -1028,6 +1127,427 @@ def _nvidia_reachable(cfg: dict) -> bool:
         return r.status_code == 200
     except Exception:
         return False
+
+
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
+PHONE_RE = re.compile(
+    r"(?:(?:\+?\d{1,3}[\s.\-]?)?(?:\(?\d{2,4}\)?[\s.\-]?)?\d{3,4}[\s.\-]?\d{3,4}(?:[\s.\-]?\d{2,4})?)"
+)
+SOCIAL_PATTERNS = {
+    "instagram": re.compile(r"https?://(?:www\.)?instagram\.com/([A-Za-z0-9_.]{2,30})/?", re.I),
+    "facebook":  re.compile(r"https?://(?:www\.|m\.)?facebook\.com/([A-Za-z0-9.\-]{3,60})/?", re.I),
+    "twitter":   re.compile(r"https?://(?:www\.)?(?:twitter|x)\.com/([A-Za-z0-9_]{2,30})/?", re.I),
+    "linkedin":  re.compile(r"https?://(?:www\.)?linkedin\.com/(?:company|in)/([A-Za-z0-9\-_.]+)/?", re.I),
+    "youtube":   re.compile(r"https?://(?:www\.)?youtube\.com/(?:c/|channel/|user/|@)([A-Za-z0-9_\-]+)/?", re.I),
+    "tiktok":    re.compile(r"https?://(?:www\.)?tiktok\.com/@([A-Za-z0-9_.]+)/?", re.I),
+    "whatsapp":  re.compile(r"https?://(?:wa\.me|api\.whatsapp\.com/send)\??(?:phone=)?([+\d\s\-]{6,20})", re.I),
+    "pinterest": re.compile(r"https?://(?:www\.)?pinterest\.[a-z.]+/([A-Za-z0-9_\-]+)/?", re.I),
+}
+
+# Junk emails we should never report (image-name false positives, tracking, etc.)
+EMAIL_JUNK_PATTERNS = (
+    "wixpress", "sentry", "@2x.", "@3x.", "example.com", "domain.com",
+    "yourcompany", "your-email", "noreply@", "no-reply@", "donotreply@",
+    "u003e", "u003c", ".png", ".jpg", ".svg", ".webp",
+)
+
+
+def _is_real_email(e: str) -> bool:
+    el = e.lower()
+    if len(el) > 80:
+        return False
+    if any(j in el for j in EMAIL_JUNK_PATTERNS):
+        return False
+    if el.endswith((".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".css", ".js")):
+        return False
+    return True
+
+
+def _normalise_phone(p: str) -> str:
+    digits = re.sub(r"[^\d+]", "", p)
+    if len(digits) < 8 or len(digits) > 16:
+        return ""
+    return digits
+
+
+_CONTACT_UA_FALLBACKS = [
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+     "Accept": "text/html,application/xhtml+xml;q=0.9",
+     "Accept-Language": "en-US,en;q=0.9"},
+    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 "
+                   "(KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+     "Accept-Language": "en-US,en;q=0.9"},
+    {"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"},
+]
+
+
+def _fetch_for_contacts(url: str) -> str:
+    """Try multiple UAs, return HTML body (empty string on total failure)."""
+    for hdrs in _CONTACT_UA_FALLBACKS:
+        try:
+            r = requests.get(url, headers=hdrs, timeout=12, allow_redirects=True)
+            if r.status_code < 400 and r.text:
+                return r.text[:500_000]
+        except Exception:
+            continue
+    return ""
+
+
+# Signals that a page is a client-rendered SPA whose static HTML doesn't
+# contain the footer / contact info we want.
+SPA_MARKERS = (
+    "__NEXT_DATA__",
+    "_next/static",
+    "/_nuxt/",
+    "data-reactroot",
+    "react-dom",
+    "id=\"root\"></div>",
+    "id='root'></div>",
+    "data-server-rendered",
+    "data-react-helmet",
+    "_app-",
+)
+
+
+def _looks_like_spa(html: str) -> bool:
+    return any(m in html for m in SPA_MARKERS)
+
+
+def _scan_next_data(html: str, found_emails: set, found_phones: set, socials: dict) -> bool:
+    """Some Next/Nuxt sites bake email/phone/socials right into the SSR payload.
+    Returns True if a payload was found and scanned."""
+    found = False
+    # __NEXT_DATA__ (Next.js pages router)
+    m = re.search(r'<script[^>]*id="__NEXT_DATA__"[^>]*>(\{.*?\})</script>', html, re.S)
+    if m:
+        try:
+            payload = m.group(1)
+            _scan_for_contacts(payload, found_emails, found_phones, socials)
+            found = True
+        except Exception:
+            pass
+    # Generic JSON-LD (often has email/phone/sameAs socials in Organization schema)
+    for sm in re.finditer(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html, re.S):
+        try:
+            blob = sm.group(1)
+            # Inline scan handles emails / phones; sameAs URLs → socials
+            _scan_for_contacts(blob, found_emails, found_phones, socials)
+            for sameas in re.findall(r'"sameAs"\s*:\s*\[([^\]]+)\]', blob):
+                for url_m in re.findall(r'"(https?://[^"]+)"', sameas):
+                    _scan_for_contacts(url_m, found_emails, found_phones, socials)
+            found = True
+        except Exception:
+            pass
+    # Nuxt window.__NUXT__ payload (sometimes serialised inline)
+    nm = re.search(r'window\.__NUXT__\s*=\s*(\{.*?\});', html, re.S)
+    if nm:
+        try:
+            _scan_for_contacts(nm.group(1), found_emails, found_phones, socials)
+            found = True
+        except Exception:
+            pass
+    return found
+
+
+def _render_via_cdp(url: str, port: int = 9222, wait_seconds: float = 4.0,
+                    push=None) -> str:
+    """Use Chrome's CDP to open a temporary tab, navigate, wait for client-side
+    hydration, return rendered outerHTML. Closes the tab afterwards.
+    Returns empty string if anything fails."""
+    if not _debugger_alive(port):
+        return ""
+    # Create a new tab
+    try:
+        info = _cdp_open_tab(port, "about:blank")
+        if not info or not info.get("webSocketDebuggerUrl"):
+            return ""
+        target_id = info["id"]
+        ws_url = info["webSocketDebuggerUrl"]
+    except Exception as e:
+        if push: push(f"    [contacts/render] tab open failed: {e}")
+        return ""
+
+    rendered_html = ""
+    try:
+        import websocket  # type: ignore
+        ws = websocket.create_connection(ws_url, timeout=10, origin="http://localhost")
+        msg_id = 0
+        def call(method, params=None, wait=8):
+            nonlocal msg_id
+            msg_id += 1
+            ws.send(json.dumps({"id": msg_id, "method": method, "params": params or {}}))
+            end = time.time() + wait
+            while time.time() < end:
+                ws.settimeout(max(0.5, end - time.time()))
+                try:
+                    resp = json.loads(ws.recv())
+                except Exception:
+                    return None
+                if resp.get("id") == msg_id:
+                    if "error" in resp: return None
+                    return resp.get("result")
+            return None
+        call("Page.enable")
+        call("Runtime.enable")
+        call("Page.navigate", {"url": url})
+        # Wait for hydration — listen briefly, then poll for stable readyState
+        deadline = time.time() + wait_seconds + 8
+        stable_since = None
+        while time.time() < deadline:
+            time.sleep(0.5)
+            r = call("Runtime.evaluate", {
+                "expression": "JSON.stringify({ready:document.readyState,len:(document.body?document.body.innerText.length:0)})",
+                "returnByValue": True,
+            }, wait=4)
+            if not r or not r.get("result"): continue
+            try:
+                payload = json.loads(r["result"].get("value") or "{}")
+            except Exception:
+                continue
+            if payload.get("ready") == "complete" and payload.get("len", 0) > 200:
+                if stable_since is None:
+                    stable_since = time.time()
+                elif time.time() - stable_since > wait_seconds:
+                    break
+        # Pull final rendered HTML
+        r = call("Runtime.evaluate", {
+            "expression": "document.documentElement.outerHTML",
+            "returnByValue": True,
+        }, wait=6)
+        if r and r.get("result") and r["result"].get("value"):
+            rendered_html = r["result"]["value"][:800_000]
+        try: ws.close()
+        except Exception: pass
+    except Exception as e:
+        if push: push(f"    [contacts/render] cdp error: {e}")
+    finally:
+        # Always close the temporary tab
+        try:
+            requests.get(f"http://127.0.0.1:{port}/json/close/{target_id}", timeout=3)
+        except Exception:
+            pass
+    return rendered_html
+
+
+def _scan_for_contacts(html: str, found_emails: set, found_phones: set, socials: dict) -> None:
+    """Pull emails/phones/socials out of a single HTML blob — mutates the sets."""
+    if not html:
+        return
+
+    # Emails from raw HTML
+    for m in EMAIL_RE.findall(html):
+        if _is_real_email(m):
+            found_emails.add(m.strip(".,;:()[]{}"))
+    # Emails from mailto: anchors
+    for m in re.findall(r'mailto:([^"\'\s>?]+)', html, re.I):
+        addr = m.split("?")[0].strip()
+        if _is_real_email(addr):
+            found_emails.add(addr)
+    # Obfuscated: name [at] domain [dot] com
+    for m in re.findall(r"([A-Za-z0-9._%+\-]+)\s*[\[(]\s*at\s*[\])]\s*([A-Za-z0-9.\-]+)\s*[\[(]\s*dot\s*[\])]\s*([A-Za-z]{2,})", html, re.I):
+        candidate = f"{m[0]}@{m[1]}.{m[2]}"
+        if _is_real_email(candidate):
+            found_emails.add(candidate)
+    # Cloudflare email protection: data-cfemail="..."
+    for cfhex in re.findall(r'data-cfemail="([0-9a-fA-F]+)"', html):
+        try:
+            key = int(cfhex[:2], 16)
+            decoded = "".join(chr(int(cfhex[i:i+2], 16) ^ key) for i in range(2, len(cfhex), 2))
+            if _is_real_email(decoded):
+                found_emails.add(decoded)
+        except Exception:
+            pass
+
+    # Socials
+    for name, rx in SOCIAL_PATTERNS.items():
+        for handle in rx.findall(html):
+            h = (handle or "").strip()
+            if h and h.lower() not in ("sharer", "share", "intent", "tr", "p", "pin", "create", "developers"):
+                socials[name].add(h if name != "whatsapp" else _normalise_phone(h))
+
+    # Phones — tel: links first (most reliable)
+    for m in re.findall(r'tel:([^"\'\s>?]+)', html, re.I):
+        n = _normalise_phone(m)
+        if n: found_phones.add(n)
+    # Plain-text phones inside phone-context chunks
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        for t in soup(["script", "style", "noscript"]):
+            t.extract()
+        text = soup.get_text(" ", strip=True)
+        for chunk in re.findall(r"[^.]*?(?:phone|call|tel|mobile|whatsapp|contact|reach us|customer care)[^.]{0,120}", text, re.I):
+            for m in PHONE_RE.findall(chunk):
+                n = _normalise_phone(m)
+                if n and len(n) >= 9:
+                    found_phones.add(n)
+    except Exception:
+        pass
+
+
+def _extract_footer_html(html: str) -> str:
+    """Return the HTML of the page's footer region, or empty string if none."""
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        # Strict footer first
+        f = soup.find("footer")
+        if f:
+            return str(f)
+        # Heuristic: divs/sections whose class/id contains footer/bottom/site-info
+        for elem in soup.find_all(["div", "section", "aside"]):
+            attrs = " ".join(
+                (elem.get(k, "") if isinstance(elem.get(k, ""), str)
+                 else " ".join(elem.get(k, [])))
+                for k in ("class", "id", "role")
+            ).lower()
+            if any(kw in attrs for kw in ("footer", "site-info", "site-bottom", "page-footer", "contact-info")):
+                return str(elem)
+    except Exception:
+        pass
+    return ""
+
+
+def _has_enough_contacts(emails: set, phones: set, socials: dict) -> bool:
+    """We have 'enough' when we found at least: 1 email OR (1 phone + 1 social)."""
+    n_social = sum(len(v) for v in socials.values())
+    return len(emails) >= 1 or (len(phones) >= 1 and n_social >= 1)
+
+
+def extract_contacts(base_url: str, push=None) -> dict:
+    """Footer-first strategy:
+       1. Fetch homepage → scan the FOOTER hard (where most sites put contacts)
+       2. If footer didn't yield enough → scan the rest of the homepage
+       3. If still not enough → crawl /contact, /about, etc.
+       4. Stop as soon as we have ≥1 email or (≥1 phone + ≥1 social).
+    """
+    found_emails: set[str] = set()
+    found_phones: set[str] = set()
+    socials: dict[str, set[str]] = {k: set() for k in SOCIAL_PATTERNS}
+
+    base = base_url.rstrip("/")
+    fetched_any = False
+    pages_tried: list[str] = []
+    pages_skipped: int = 0
+
+    # ----- 1. Homepage → footer first, then whole page -----
+    home_html = _fetch_for_contacts(base_url)
+    if home_html:
+        fetched_any = True
+        pages_tried.append("homepage")
+
+        # 1a. JSON-LD + __NEXT_DATA__ payloads (great for SPAs that hardcode org info)
+        if _scan_next_data(home_html, found_emails, found_phones, socials):
+            pages_tried.append("__NEXT_DATA__/JSON-LD")
+
+        # 1b. Footer first
+        footer_html = _extract_footer_html(home_html)
+        if footer_html:
+            _scan_for_contacts(footer_html, found_emails, found_phones, socials)
+            if push and (found_emails or found_phones or any(socials.values())):
+                push(f"    [contacts] footer hit on {base_url}: "
+                     f"📧{len(found_emails)} 📞{len(found_phones)} "
+                     f"🔗{sum(len(v) for v in socials.values())}")
+
+        # 1c. If footer was empty / weak, scan the whole homepage HTML
+        if not _has_enough_contacts(found_emails, found_phones, socials):
+            _scan_for_contacts(home_html, found_emails, found_phones, socials)
+
+        # 1d. SPA fallback — if STILL empty AND page looks like a client-rendered
+        # React/Next/Nuxt shell, render in Chrome and scan the rendered DOM.
+        if (not _has_enough_contacts(found_emails, found_phones, socials)
+                and _looks_like_spa(home_html)):
+            cfg_now = load_config()
+            port = cfg_now.get("chrome_remote_port", 9222)
+            if push: push(f"    [contacts] {base_url} looks like a SPA — rendering in Chrome…")
+            rendered = _render_via_cdp(base_url, port=port, push=push)
+            if rendered:
+                pages_tried.append("rendered-spa")
+                # Re-scan footer of the rendered DOM
+                rfooter = _extract_footer_html(rendered)
+                if rfooter:
+                    _scan_for_contacts(rfooter, found_emails, found_phones, socials)
+                if not _has_enough_contacts(found_emails, found_phones, socials):
+                    _scan_for_contacts(rendered, found_emails, found_phones, socials)
+                if push:
+                    push(f"    [contacts] post-render on {base_url}: "
+                         f"📧{len(found_emails)} 📞{len(found_phones)} "
+                         f"🔗{sum(len(v) for v in socials.values())}")
+            elif push:
+                push(f"    [contacts] SPA render failed (Chrome debugger unavailable?)")
+
+    # ----- 2. If still not enough, crawl extra pages -----
+    extra_pages = [
+        f"{base}/contact",
+        f"{base}/contact-us",
+        f"{base}/contacts",
+        f"{base}/pages/contact",
+        f"{base}/pages/contact-us",
+        f"{base}/about",
+        f"{base}/about-us",
+        f"{base}/pages/about",
+        f"{base}/imprint",
+        f"{base}/impressum",
+        f"{base}/legal",
+    ]
+    seen = set([base_url])
+    for page_url in extra_pages:
+        if _has_enough_contacts(found_emails, found_phones, socials):
+            pages_skipped = len(extra_pages) - extra_pages.index(page_url)
+            break
+        if page_url in seen:
+            continue
+        seen.add(page_url)
+        html = _fetch_for_contacts(page_url)
+        if not html:
+            continue
+        fetched_any = True
+        pages_tried.append(page_url.rsplit("/", 1)[-1])
+        # On these pages, scan the whole HTML (they ARE contact pages)
+        _scan_for_contacts(html, found_emails, found_phones, socials)
+
+    # ----- 3. Last-resort: follow footer links on homepage labelled contact/about -----
+    if home_html and not _has_enough_contacts(found_emails, found_phones, socials):
+        try:
+            soup = BeautifulSoup(home_html, "html.parser")
+            followed = 0
+            for a in (soup.find("footer") or soup).find_all("a", href=True):
+                href = a["href"].strip()
+                label = a.get_text(" ", strip=True).lower()
+                if not href.startswith(("http", "/")):
+                    continue
+                if not any(k in (href + " " + label).lower() for k in
+                           ("contact", "about", "impressum", "imprint", "legal", "team", "get in touch")):
+                    continue
+                full = href if href.startswith("http") else (base + href if href.startswith("/") else f"{base}/{href}")
+                if urlparse(full).netloc != urlparse(base_url).netloc:
+                    continue
+                if full in seen:
+                    continue
+                seen.add(full)
+                sub = _fetch_for_contacts(full)
+                if sub:
+                    fetched_any = True
+                    pages_tried.append(f"footer-link:{full.rsplit('/',1)[-1]}")
+                    _scan_for_contacts(sub, found_emails, found_phones, socials)
+                    followed += 1
+                if followed >= 3 or _has_enough_contacts(found_emails, found_phones, socials):
+                    break
+        except Exception:
+            pass
+
+    if push and not fetched_any:
+        push(f"    [contacts] all page fetches blocked for {base_url}")
+    elif push and pages_skipped:
+        push(f"    [contacts] {base_url} → fetched {len(pages_tried)} page(s), "
+             f"skipped {pages_skipped} (already had enough info)")
+
+    return {
+        "emails": sorted(found_emails)[:10],
+        "phones": sorted(found_phones)[:8],
+        "socials": {k: sorted(v)[:5] for k, v in socials.items() if v},
+        "fetched_any": fetched_any,
+        "pages_tried": pages_tried,
+    }
 
 
 def _fetch_page_text(url: str) -> tuple[str, str]:
@@ -1274,6 +1794,7 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
 
         classify_niche = bool(params.get("classify_niche", True)) and bool(cfg.get("nvidia_api_key"))
         custom_niche = (params.get("custom_niche") or "").strip()
+        do_extract_contacts = bool(params.get("extract_contacts", False))
 
         # Pick up the URLs that have NOT been verified yet
         remaining = [u["url"] for u in saved_urls
@@ -1288,8 +1809,16 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
                 if vert in ("", "Unknown") and v.get("url"):
                     reclassify.append(v)
 
+        # Backfill contacts for prior rows that have none (when requested).
+        contact_backfill: list[dict] = []
+        if do_extract_contacts:
+            for v in prior_verifs:
+                if v.get("url") and not (v.get("emails") or v.get("phones") or v.get("socials")):
+                    contact_backfill.append(v)
+
         push(f"PHASE 2 (continued) — {len(remaining)} new URLs to verify, "
-             f"{len(reclassify)} unknown niches to re-classify.")
+             f"{len(reclassify)} unknown niches to re-classify, "
+             f"{len(contact_backfill)} rows to backfill contacts.")
         all_verified: list[dict] = list(prior_verifs)
 
         for i, u in enumerate(remaining):
@@ -1297,7 +1826,7 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
                 push("⏹ Stop requested — moving to filter step.")
                 break
             JOBS[job_id]["progress"] = 30 + int(60 * i / max(1, len(remaining)))
-            det = detect_tech_stack(u)
+            det = detect_tech_stack(u, push=push)
             final_url = det["final_url"]
             platforms = det["platforms"]
             platform_str = ", ".join(platforms) if platforms else "Unknown"
@@ -1306,6 +1835,12 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
                 # Attempt classification even when page fetch failed — nvidia_classify
                 # does its own snippet fetch and can also classify from URL alone.
                 verdict = nvidia_classify_with_retry(final_url, cfg, custom_niche=custom_niche)
+            contacts = {"emails": [], "phones": [], "socials": {}}
+            if do_extract_contacts:
+                try:
+                    contacts = extract_contacts(final_url, push=push)
+                except Exception as ce:
+                    push(f"    [contacts] {root_domain(final_url)} extraction failed: {ce}")
             row = {
                 "domain": root_domain(final_url),
                 "url": final_url,
@@ -1315,12 +1850,22 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
                 "vertical": verdict["vertical"],
                 "confidence": verdict["confidence"],
                 "reason": verdict["reason"],
+                "emails": contacts.get("emails") or [],
+                "phones": contacts.get("phones") or [],
+                "socials": contacts.get("socials") or {},
             }
             all_verified.append(row)
             _db.record_verification(job_id, row)
             JOBS[job_id]["all_verified"] = list(all_verified)
+            contact_str = ""
+            if do_extract_contacts:
+                n_email = len(row["emails"])
+                n_phone = len(row["phones"])
+                n_social = sum(len(v) for v in row["socials"].values())
+                contact_str = f" · 📧{n_email} 📞{n_phone} 🔗{n_social}"
             push(f"  [{i+1}/{len(remaining)}] {row['domain']} → stack: {platform_str}"
-                 + (f" · niche: {verdict['vertical']} ({verdict['confidence']:.2f})" if classify_niche else ""))
+                 + (f" · niche: {verdict['vertical']} ({verdict['confidence']:.2f})" if classify_niche else "")
+                 + contact_str)
 
         # Re-classify previously-Unknown rows
         if reclassify:
@@ -1340,6 +1885,29 @@ def run_continue_job(job_id: str, cfg: dict) -> None:
                         break
                 push(f"  [reclass {i+1}/{len(reclassify)}] {v.get('domain','')} → "
                      f"{verdict['vertical']} ({verdict['confidence']:.2f})")
+            JOBS[job_id]["all_verified"] = list(all_verified)
+
+        # Backfill contacts for prior rows that had none
+        if contact_backfill:
+            push(f"📇 Backfilling contacts on {len(contact_backfill)} rows…")
+            for ci, v in enumerate(contact_backfill):
+                if JOBS[job_id].get("stop_requested"):
+                    break
+                try:
+                    contacts = extract_contacts(v["url"], push=push)
+                except Exception as ce:
+                    push(f"    [contacts] {v.get('domain','')} extraction failed: {ce}")
+                    contacts = {"emails": [], "phones": [], "socials": {}}
+                for r in all_verified:
+                    if r.get("url") == v.get("url"):
+                        r["emails"] = contacts.get("emails") or []
+                        r["phones"] = contacts.get("phones") or []
+                        r["socials"] = contacts.get("socials") or {}
+                        _db.record_verification(job_id, r)
+                        break
+                n_e, n_p = len(contacts.get("emails") or []), len(contacts.get("phones") or [])
+                n_s = sum(len(x) for x in (contacts.get("socials") or {}).values())
+                push(f"  [contacts {ci+1}/{len(contact_backfill)}] {v.get('domain','')} → 📧{n_e} 📞{n_p} 🔗{n_s}")
             JOBS[job_id]["all_verified"] = list(all_verified)
 
         # Final auto-sweep — any rows still Unknown after retries get one more pass
@@ -1427,6 +1995,8 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
     city = (payload.get("city") or "").strip()
     area = (payload.get("area") or "").strip()
     pages_per_query = max(1, min(10, int(payload.get("pages_per_query") or 1)))
+    do_extract_contacts = bool(payload.get("extract_contacts", False))
+    skip_tech_filter = bool(payload.get("skip_tech_filter", False))
 
     # Comma-separated keywords from UI ("salon, spa, beauty" → ["salon","spa","beauty"])
     raw_kw = payload.get("keywords") or ""
@@ -1502,8 +2072,11 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
         "Framer":      ['site:framer.website'],
     }
     hint_phrases: list[str] = []
-    for s in (selected_stacks or []):
-        hint_phrases.extend(stack_hints.get(s, []))
+    # When skip_tech_filter is on, IGNORE selected stacks for query-building
+    # too — generate plain niche+location queries with no platform footprints.
+    if not skip_tech_filter:
+        for s in (selected_stacks or []):
+            hint_phrases.extend(stack_hints.get(s, []))
     if not hint_phrases:
         hint_phrases = [""]
 
@@ -1514,30 +2087,75 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
         if q and q not in seen_q:
             seen_q.add(q); queries.append(q)
 
-    # 1) keyword × stack-hint × location  (the core query)
+    # Junk-site exclusions used when skip_tech_filter is ON to push Google
+    # away from social / marketplace / listing / wiki results.
+    NOISE_EXCLUDE = (
+        "-site:facebook.com -site:instagram.com -site:linkedin.com "
+        "-site:twitter.com -site:x.com -site:youtube.com -site:tiktok.com "
+        "-site:wikipedia.org -site:reddit.com -site:pinterest.com -site:quora.com -site:medium.com "
+        "-site:amazon.com -site:amazon.in -site:flipkart.com -site:myntra.com "
+        "-site:ajio.com -site:meesho.com -site:etsy.com -site:ebay.com "
+        "-site:justdial.com -site:sulekha.com -site:indiamart.com -site:tradeindia.com "
+        "-site:tripadvisor.com -site:yelp.com -site:trustpilot.com -site:bbb.org"
+    )
+
     bases = keywords if keywords else verticals_q
-    for kw in bases:
-        for h in hint_phrases:
-            if primary_loc:
-                add(f'{kw} "{primary_loc}" {h}')        # "Mumbai" anchored
-                add(f'{kw} {broad_loc} {h}')            # loose match
-            else:
-                add(f'{kw} {h}')
 
-    # 2) location-anchored phrases that real stores use
-    if primary_loc:
-        for h in hint_phrases:
-            add(f'"based in {primary_loc}" {h}')
-            add(f'"made in {primary_loc}" {h}')
-            add(f'"ships from {primary_loc}" {h}')
-            for kw in bases:
-                add(f'"{kw}" "based in {primary_loc}" {h}')
+    if skip_tech_filter:
+        # ---------- Consolidated commerce queries — match the format:
+        # ("kw1" OR "kw2" OR "kw3") "City" "State" -site:wiki -site:fb …
+        # One Google fetch covers all keywords; far fewer queries needed.
 
-    # 3) raw site: search with location word (great for Shopify)
-    if "Shopify" in (selected_stacks or []) and primary_loc:
-        add(f'site:myshopify.com "{primary_loc}"')
-        if broad_loc != primary_loc:
-            add(f'site:myshopify.com "{broad_loc}"')
+        # Build the OR-block once: ("kw1" OR "kw2" OR "kw3")
+        kw_quoted = [f'"{kw}"' for kw in bases]
+        kw_or_block = "(" + " OR ".join(kw_quoted) + ")" if len(kw_quoted) > 1 else (kw_quoted[0] if kw_quoted else "")
+
+        # Build the location block: "City" "State" (each quoted, space-separated)
+        loc_tokens = []
+        for x in (area, city, state, country):
+            x = (x or "").strip()
+            if x:
+                loc_tokens.append(f'"{x}"')
+        loc_block = " ".join(loc_tokens)
+
+        # 1. PRIMARY — your exact target format
+        add(f'{kw_or_block} {loc_block} {NOISE_EXCLUDE}')
+
+        # 2. Commerce-page bias — adds intitle:/inurl: nudges toward shops
+        if loc_block:
+            add(f'{kw_or_block} {loc_block} (intitle:shop OR intitle:store OR intitle:brand) {NOISE_EXCLUDE}')
+            add(f'{kw_or_block} {loc_block} ("shop now" OR "add to cart" OR "buy now") {NOISE_EXCLUDE}')
+            add(f'{kw_or_block} {loc_block} "contact us" {NOISE_EXCLUDE}')
+
+        # 3. Local-brand patterns — catches About / Footer "based in …" copy
+        if primary_loc:
+            add(f'{kw_or_block} "based in {primary_loc}" {NOISE_EXCLUDE}')
+            add(f'{kw_or_block} "made in {primary_loc}" {NOISE_EXCLUDE}')
+    else:
+        # ---------- Tech-stack-aware queries (existing behavior) ----------
+        # 1) keyword × stack-hint × location  (the core query)
+        for kw in bases:
+            for h in hint_phrases:
+                if primary_loc:
+                    add(f'{kw} "{primary_loc}" {h}')        # "Mumbai" anchored
+                    add(f'{kw} {broad_loc} {h}')            # loose match
+                else:
+                    add(f'{kw} {h}')
+
+        # 2) location-anchored phrases that real stores use
+        if primary_loc:
+            for h in hint_phrases:
+                add(f'"based in {primary_loc}" {h}')
+                add(f'"made in {primary_loc}" {h}')
+                add(f'"ships from {primary_loc}" {h}')
+                for kw in bases:
+                    add(f'"{kw}" "based in {primary_loc}" {h}')
+
+        # 3) raw site: search with location word (great for Shopify)
+        if "Shopify" in (selected_stacks or []) and primary_loc:
+            add(f'site:myshopify.com "{primary_loc}"')
+            if broad_loc != primary_loc:
+                add(f'site:myshopify.com "{broad_loc}"')
 
     # Boot local Chrome debugger if user opted in
     cdp_ready = False
@@ -1562,8 +2180,9 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
     seen_hosts: set[str] = set()
 
     import random as _rng
-    min_delay = float(cfg.get("min_delay_sec", 1.5))
-    max_delay = float(cfg.get("max_delay_sec", 4.0))
+    # Use slower delays when scraping contacts (politeness; fewer captchas)
+    min_delay = float(cfg.get("min_delay_sec", 1.5)) * (2 if do_extract_contacts else 1)
+    max_delay = float(cfg.get("max_delay_sec", 4.0)) * (2 if do_extract_contacts else 1)
     backoff = 0.0  # grows after each CAPTCHA / 429
 
     for qi, q in enumerate(queries):
@@ -1653,7 +2272,7 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
             push("⏹ Stop requested — ending Phase 2 early, filtering what we have.")
             break
         update(progress=30 + int(60 * i / max(1, len(collected))))
-        det = detect_tech_stack(u)
+        det = detect_tech_stack(u, push=push)
         final_url = det["final_url"]
         platforms = det["platforms"]
         platform_str = ", ".join(platforms) if platforms else "Unknown"
@@ -1668,6 +2287,16 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
             else:
                 nvidia_fail_count += 1
 
+        # Contact extraction (homepage + /contact + /about)
+        contacts = {"emails": [], "phones": [], "socials": {}}
+        if do_extract_contacts:
+            try:
+                contacts = extract_contacts(final_url)
+            except Exception as ce:
+                push(f"    [contacts] {root_domain(final_url)} extraction failed: {ce}")
+            # Politeness pause between heavy fetches
+            time.sleep(_rng.uniform(min_delay * 0.5, min_delay))
+
         row = {
             "domain": root_domain(final_url),
             "url": final_url,
@@ -1677,13 +2306,23 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
             "vertical": verdict["vertical"],
             "confidence": verdict["confidence"],
             "reason": verdict["reason"],
+            "emails": contacts.get("emails") or [],
+            "phones": contacts.get("phones") or [],
+            "socials": contacts.get("socials") or {},
         }
         all_verified.append(row)
         _db.record_verification(job_id, row)          # ← disk-backed
         update(all_verified=list(all_verified))
+        contact_str = ""
+        if do_extract_contacts:
+            n_email = len(row["emails"])
+            n_phone = len(row["phones"])
+            n_social = sum(len(v) for v in row["socials"].values())
+            contact_str = f" · 📧{n_email} 📞{n_phone} 🔗{n_social}"
         push(f"  [{i+1}/{len(collected)}] {row['domain']} → "
              f"stack: {platform_str}"
-             + (f" · niche: {verdict['vertical']} ({verdict['confidence']:.2f})" if classify_niche else ""))
+             + (f" · niche: {verdict['vertical']} ({verdict['confidence']:.2f})" if classify_niche else "")
+             + contact_str)
     push(f"PHASE 2 done — {len(all_verified)} URLs analysed.")
 
     # ---------- AUTO-SWEEP: re-classify Unknowns if NVIDIA is now reachable ----------
@@ -1733,12 +2372,13 @@ def _run_scrape_job_inner(job_id: str, payload: dict, cfg: dict) -> None:
         update(niche_fallback=True)
 
     def keep(r: dict) -> bool:
-        if selected_stacks:
-            if not any(p in selected_stacks for p in r["platforms"]):
-                return False
-        else:
-            if not r["platforms"]:
-                return False
+        if not skip_tech_filter:
+            if selected_stacks:
+                if not any(p in selected_stacks for p in r["platforms"]):
+                    return False
+            else:
+                if not r["platforms"]:
+                    return False
         if apply_niche:
             if r["vertical"].strip().lower() != niche_filter.strip().lower():
                 return False
@@ -1788,8 +2428,17 @@ def api_models():
             )
             if r.status_code == 200:
                 data = r.json().get("data") or []
-                # Prefer reasoning-capable / large chat models near the top
-                priority = ("r1", "nemotron", "qwq", "405b", "70b", "32b", "27b", "22b")
+                # Rank: fast small models first (they classify niches in ~1s),
+                # then mid-size, then large reasoning, then heavy.
+                priority = (
+                    "nano-8b", "phi-3", "mistral-7b", "qwen2.5-7b",   # fastest tier
+                    "8b-instruct",
+                    "nemotron-super-49b", "nemotron-51b", "mistral-nemotron",
+                    "qwq-32b", "distill-qwen-32b",
+                    "70b-instruct", "distill-llama-70b",
+                    "deepseek-v3", "deepseek-r1",
+                    "nemotron-ultra", "405b",
+                )
                 def rank(m):
                     mid = m.get("id", "").lower()
                     for i, p in enumerate(priority):
@@ -2052,6 +2701,41 @@ def api_jobs_csv(job_id):
                     headers={"Content-Disposition": f'attachment; filename="job_{job_id}.csv"'})
 
 
+@app.route("/api/jobs/<job_id>/outreach-csv")
+def api_jobs_outreach_csv(job_id):
+    """CSV optimized for outreach: domain, niche, emails, phones, social handles."""
+    rows = _db.get_job_verifications(job_id, accepted_only=request.args.get("accepted") == "1")
+    import io, csv
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "domain", "url", "niche", "confidence", "tech_stack",
+        "emails", "phones",
+        "instagram", "facebook", "twitter", "linkedin",
+        "youtube", "tiktok", "whatsapp", "pinterest",
+    ])
+    for r in rows:
+        s = r.get("socials") or {}
+        w.writerow([
+            r.get("domain", ""), r.get("url", ""),
+            r.get("vertical", ""), r.get("confidence", ""),
+            "|".join(r.get("platforms") or []),
+            "; ".join(r.get("emails") or []),
+            "; ".join(r.get("phones") or []),
+            "; ".join(s.get("instagram") or []),
+            "; ".join(s.get("facebook") or []),
+            "; ".join(s.get("twitter") or []),
+            "; ".join(s.get("linkedin") or []),
+            "; ".join(s.get("youtube") or []),
+            "; ".join(s.get("tiktok") or []),
+            "; ".join(s.get("whatsapp") or []),
+            "; ".join(s.get("pinterest") or []),
+        ])
+    from flask import Response
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="outreach_{job_id}.csv"'})
+
+
 @app.route("/api/jobs/<job_id>", methods=["DELETE"])
 def api_jobs_delete(job_id):
     _db.delete_job(job_id)
@@ -2086,11 +2770,14 @@ def api_bulk_verify():
     # Bulk verify: ALWAYS classify with NVIDIA when a key is set — the user's
     # whole intent is to learn the niche of these URLs.
     classify_for_bulk = bool(cfg_now.get("nvidia_api_key"))
+    # Bulk verify defaults to extracting contacts (its main use-case is outreach).
+    extract_for_bulk = bool(data.get("extract_contacts", True))
     params = {
         "keywords": "",
         "custom_niche": (data.get("custom_niche") or "").strip(),
         "tech_stacks": data.get("tech_stacks") or [],
         "classify_niche": classify_for_bulk,
+        "extract_contacts": extract_for_bulk,
         "vertical": "all",
         "country": "", "state": "", "city": "", "area": "",
         "_bulk": True,
@@ -2126,6 +2813,91 @@ def api_jobs_continue(job_id):
     cfg = load_config()
     threading.Thread(target=run_continue_job, args=(job_id, cfg), daemon=True).start()
     return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/jobs/<job_id>/extract-contacts", methods=["POST"])
+def api_jobs_extract_contacts(job_id):
+    """Run contact extraction on every URL in a job that doesn't yet have contacts.
+    Returns immediately; the heavy work runs in a background thread."""
+    rows = _db.list_jobs(1000)
+    job = next((j for j in rows if j["id"] == job_id), None)
+    if not job:
+        return jsonify({"ok": False, "error": "no such job"}), 404
+
+    # Mark intent on the job so future Continue calls also extract
+    cfg = load_config()
+
+    def worker():
+        verifs = _db.get_job_verifications(job_id)
+        targets = [v for v in verifs
+                   if v.get("url") and not (v.get("emails") or v.get("phones") or v.get("socials"))]
+        if not targets:
+            with JOBS_LOCK:
+                JOBS.setdefault(job_id, {}).setdefault("log", []).append(
+                    "📇 Contact extraction: nothing to backfill — every row already has contacts.")
+            return
+        with JOBS_LOCK:
+            JOBS[job_id] = {
+                "status": "running", "phase": "extract", "progress": 0,
+                "log": [f"📇 Extracting contacts on {len(targets)} rows…"],
+                "results": [], "all_verified": list(verifs), "rejected": [],
+                "collected": [v["url"] for v in verifs],
+                "stop_requested": False,
+            }
+        _db.update_job_status(job_id, "running")
+        for i, v in enumerate(targets):
+            if JOBS[job_id].get("stop_requested"):
+                break
+            try:
+                contacts = extract_contacts(v["url"])
+            except Exception as ce:
+                contacts = {"emails": [], "phones": [], "socials": {}}
+                JOBS[job_id]["log"].append(f"    [contacts] {v.get('domain','')} failed: {ce}")
+            for r in verifs:
+                if r.get("url") == v.get("url"):
+                    r["emails"] = contacts.get("emails") or []
+                    r["phones"] = contacts.get("phones") or []
+                    r["socials"] = contacts.get("socials") or {}
+                    _db.record_verification(job_id, r)
+                    break
+            JOBS[job_id]["all_verified"] = list(verifs)
+            JOBS[job_id]["progress"] = int(100 * (i + 1) / len(targets))
+            n_e, n_p = len(contacts.get("emails") or []), len(contacts.get("phones") or [])
+            n_s = sum(len(x) for x in (contacts.get("socials") or {}).values())
+            JOBS[job_id]["log"].append(
+                f"  [{i+1}/{len(targets)}] {v.get('domain','')} → 📧{n_e} 📞{n_p} 🔗{n_s}")
+        final_status = "stopped" if JOBS[job_id].get("stop_requested") else "done"
+        _db.update_job_status(job_id, final_status, ended=True)
+        JOBS[job_id]["status"] = final_status
+        JOBS[job_id]["phase"] = final_status
+        JOBS[job_id]["progress"] = 100
+        JOBS[job_id]["log"].append(
+            f"📇 Contact extraction {final_status}.")
+
+    threading.Thread(target=worker, daemon=True).start()
+    return jsonify({"ok": True, "job_id": job_id})
+
+
+@app.route("/api/jobs/<job_id>/extract-one", methods=["POST"])
+def api_jobs_extract_one(job_id):
+    """Run contact extraction for a SINGLE url. Returns the result inline."""
+    data = request.get_json(force=True)
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"ok": False, "error": "url required"}), 400
+    try:
+        contacts = extract_contacts(url)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+    # Update the existing row, if any
+    existing = _db.get_job_verifications(job_id)
+    base = next((r for r in existing if r.get("url") == url), None)
+    if base:
+        base["emails"] = contacts.get("emails") or []
+        base["phones"] = contacts.get("phones") or []
+        base["socials"] = contacts.get("socials") or {}
+        _db.record_verification(job_id, base)
+    return jsonify({"ok": True, "contacts": contacts})
 
 
 @app.route("/api/jobs/<job_id>/reclassify-one", methods=["POST"])
